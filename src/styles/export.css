@@ -133,3 +133,30 @@ footer {
     transform: rotate(360deg);
   }
 }
+/* Keep the download control paired with the posture selector at every width. */
+.motion-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 96px);
+  align-items: center;
+  gap: 8px;
+}
+.motion-actions select,
+.gif-button {
+  width: 96px;
+  height: 28px;
+}
+.gif-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: #4b603e;
+  color: #fffefa;
+  font-size: 11px;
+}
+.gif-button:hover { background: #3e5232; }
+.gif-button:disabled { opacity: 0.7; }
+.motion-picker { gap: 12px; }

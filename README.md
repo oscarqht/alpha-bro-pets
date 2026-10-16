@@ -31,8 +31,12 @@ npm run preview
 1. Pick an expression from the ring, a shape from the carousel, and a palette or custom color.
    Arrow keys and Home/End work in the expression and shape groups.
 2. Name your pet and preview its nine animation states. The pause control freezes motion.
-3. Choose **Export ChatGPT pet** to download a transparent PNG with all animation frames.
-4. In ChatGPT, open **Settings → Personalization → Pet → Select pet → Upload pet**
+3. Choose **GIF** beside the motion picker to download the selected move as a
+   transparent, endlessly looping **192 × 208 GIF at 50 fps**, using the same smooth
+   motion as the preview. GIF supports on/off transparency, so partially transparent
+   edge pixels are thresholded. Export runs locally and shows progress.
+4. Choose **Export ChatGPT pet** to download a transparent PNG with all animation frames.
+5. In ChatGPT, open **Settings → Personalization → Pet → Select pet → Upload pet**
    and choose the PNG. Pet availability depends on your app and account.
 
 Your avatar and name are saved in this browser. Export works without network requests;
