@@ -1,0 +1,68 @@
+/* Only icons inside the selector move; shared project icons stay still. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-project-icon-picker] .project-icon-eye {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: project-icon-blink 5.2s ease-in-out infinite;
+  }
+
+  [data-project-icon-picker] .project-icon-pupil {
+    animation: project-icon-glance 5.2s ease-in-out infinite;
+  }
+
+  [data-project-icon-picker] [role='radio']:nth-of-type(3n + 1) .project-icon-eye,
+  [data-project-icon-picker] [role='radio']:nth-of-type(3n + 1) .project-icon-pupil {
+    animation-delay: -1.7s;
+  }
+
+  [data-project-icon-picker] [role='radio']:nth-of-type(3n + 2) .project-icon-eye,
+  [data-project-icon-picker] [role='radio']:nth-of-type(3n + 2) .project-icon-pupil {
+    animation-delay: -3.4s;
+  }
+
+  [data-project-icon-picker] .project-icon-eye--dash {
+    animation-name: project-icon-cross-tilt;
+  }
+}
+
+@keyframes project-icon-blink {
+  0%, 42%, 48%, 100% { transform: scaleY(1); }
+  45% { transform: scaleY(0.08); }
+}
+
+@keyframes project-icon-glance {
+  0%, 12%, 66%, 100% { transform: translateX(0); }
+  20%, 30% { transform: translateX(0.035px); }
+  52%, 58% { transform: translateX(-0.035px); }
+}
+
+@keyframes project-icon-cross-tilt {
+  0%, 36%, 64%, 100% { transform: rotate(0deg); }
+  44% { transform: rotate(-12deg); }
+  54% { transform: rotate(12deg); }
+}
+
+/* The standalone picker keeps the blooming palette inside its card at every viewport. */
+[data-project-color-wheel] {
+  left: auto !important;
+  top: 0 !important;
+  right: 0;
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+  transform-origin: top right;
+}
+
+[data-project-icon-picker] button:focus-visible,
+[data-project-icon-picker] input:focus-visible {
+  outline: 2px solid #18181b;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-project-icon-picker] *,
+  [data-project-icon-picker] *::before,
+  [data-project-icon-picker] *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,135 @@
+.export-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 22px 25px;
+  background: #eaeede;
+  border: 1px solid #dee4cf;
+  border-radius: 16px;
+  gap: 20px;
+}
+.export-copy {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.export-icon {
+  border-radius: 12px;
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  background: #f8f9ee;
+  color: #64784f;
+  border: 1px solid #dce3cc;
+  flex-shrink: 0;
+}
+.export-copy h2 {
+  font-size: 14px;
+}
+.export-copy p {
+  font-size: 11px;
+  color: #5e694f;
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+.export-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #465839;
+  border-radius: 9px;
+  padding: 13px 19px;
+  background: #4b603e;
+  color: #fffefa;
+  font-size: 12px;
+  font-weight: 550;
+  box-shadow: 0 2px 3px #354b2914;
+  white-space: nowrap;
+  min-width: 202px;
+}
+.export-button:hover {
+  background: #3e5232;
+}
+.export-button:disabled {
+  opacity: 0.7;
+}
+.feedback {
+  font-size: 11px;
+  color: #4b603e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  margin-top: 6px;
+  text-align: center;
+}
+.error-message {
+  font-size: 12px;
+  color: #a52e27;
+  text-align: center;
+}
+.import-help {
+  text-align: center;
+  margin: 5px 0 38px;
+}
+.help-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #626b57;
+  border: 0;
+  background: transparent;
+  padding: 8px;
+}
+.help-content {
+  text-align: left;
+  font-size: 12px;
+  background: #fffefa;
+  border: 1px solid #e5e5da;
+  border-radius: 12px;
+  padding: 18px 25px;
+  max-width: 600px;
+  margin: 10px auto;
+  line-height: 1.9;
+  color: #68705b;
+}
+.help-content ol {
+  padding-left: 18px;
+  list-style: decimal;
+}
+.help-content p {
+  font-size: 11px;
+  margin: 9px 0 0;
+}
+.help-content a {
+  text-decoration: underline;
+}
+.flipped {
+  transform: rotate(180deg);
+}
+footer {
+  border-top: 1px solid #e3e4da;
+  padding: 22px 0 30px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  color: #69725e;
+}
+.footer-dot {
+  margin: 0 6px;
+  color: #a6ac9b;
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

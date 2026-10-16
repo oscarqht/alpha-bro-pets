@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.DS_Store
+.expect/
+artifacts/
+tests/evidence/
+.env
+.env.*
+!.env.example

@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@config "../tailwind.config.cjs";
+
+@import "./styles/base.css";
+@import "./styles/studio.css";
+@import "./styles/export.css";
+@import "./styles/responsive.css";
