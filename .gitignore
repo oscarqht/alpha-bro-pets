@@ -7,3 +7,5 @@ tests/evidence/
 .env
 .env.*
 !.env.example
+.worktrees
+.raft
