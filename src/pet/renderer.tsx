@@ -8,6 +8,7 @@ interface AvatarLayers {
   body: HTMLImageElement;
   face: HTMLImageElement;
   color: string;
+  waveAnchorX: number;
 }
 
 const imageCache = new Map<string, Promise<AvatarLayers>>();
@@ -29,8 +30,8 @@ export function loadAvatarLayers(icon: string): Promise<AvatarLayers> {
     const props = { icon, width: 432, height: 432, className: '' };
     const fullMarkup = renderToStaticMarkup(createElement(ProjectIcon, props));
     const bodyMarkup = renderToStaticMarkup(createElement(ProjectIcon, { ...props, showFace: false }));
-    const document = new DOMParser().parseFromString(fullMarkup, 'image/svg+xml');
-    const svg = document.documentElement;
+    const svgDocument = new DOMParser().parseFromString(fullMarkup, 'image/svg+xml');
+    const svg = svgDocument.documentElement;
     // Raft's last root group contains its original eyes and brows. Keep those exact vectors.
     const face = Array.from(svg.children).reverse().find((child) => child.tagName === 'g');
     for (const child of Array.from(svg.children)) {
@@ -38,7 +39,21 @@ export function loadAvatarLayers(icon: string): Promise<AvatarLayers> {
     }
     const faceMarkup = new XMLSerializer().serializeToString(svg);
     const [bodyImage, faceImage] = await Promise.all([loadSvg(bodyMarkup), loadSvg(faceMarkup)]);
-    return { body: bodyImage, face: faceImage, color: getProjectIcon(icon).color };
+    // Measure the actual silhouette once, at the same size used by every renderer.
+    // A fixed shoulder lets the raised hand disappear inside wide or lobed bodies.
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 144;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Your browser does not support canvas rendering.');
+    context.drawImage(bodyImage, 0, 0, 144, 144);
+    const pixels = context.getImageData(0, 0, 144, 144).data;
+    let right = 0;
+    for (let y = 0; y < 144; y++) {
+      for (let x = right; x < 144; x++) {
+        if (pixels[(y * 144 + x) * 4 + 3] > 0) right = x;
+      }
+    }
+    return { body: bodyImage, face: faceImage, color: getProjectIcon(icon).color, waveAnchorX: right - 72 + 18 };
   })();
   imageCache.set(icon, promise);
   // A failed image must be retryable. Limit retained variants during long editing sessions.
@@ -54,24 +69,24 @@ function paintPose(context: CanvasRenderingContext2D, layers: AvatarLayers, pose
   context.rotate(pose.tilt);
   context.scale(pose.sx, pose.sy);
   if (pose.wave !== null) {
-    // A matching-color attached arm gives the original geometric avatar a readable greeting.
-    // Start behind the body center so slender or tapered shapes never leave a floating arm.
+    // Keep the forearm outside the entire silhouette throughout its sweep. The
+    // upper arm starts behind the center so even tapered shapes stay attached.
     context.strokeStyle = layers.color;
-    context.lineWidth = 12;
+    context.lineWidth = 10;
     context.lineCap = 'round';
     context.beginPath();
     context.moveTo(0, -59);
-    context.lineTo(41, -59);
+    context.lineTo(layers.waveAnchorX, -59);
     context.stroke();
     context.save();
-    context.translate(41, -59);
+    context.translate(layers.waveAnchorX, -59);
     context.rotate(pose.wave);
     context.strokeStyle = layers.color;
-    context.lineWidth = 12;
+    context.lineWidth = 10;
     context.lineCap = 'round';
     context.beginPath();
-    context.moveTo(-3, 3);
-    context.quadraticCurveTo(19, 3, 28, -19);
+    context.moveTo(0, 0);
+    context.quadraticCurveTo(8, -16, 0, -32);
     context.stroke();
     context.restore();
   }
