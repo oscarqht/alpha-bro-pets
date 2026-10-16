@@ -130,3 +130,25 @@ export async function createPetSheet(icon: string, version: PetVersion = 'v1'): 
   if (blob.size > 20 * 1024 * 1024) throw new Error('The sprite sheet exceeds the 20 MiB ChatGPT limit.');
   return blob;
 }
+
+/** Export one complete loop of the selected move using the live interpolated poses. */
+export async function createPetGif(icon: string, state: PetState, onProgress?: (percent: number) => void): Promise<Blob> {
+  const { createGifEncoder, gifTimeline } = await import('./gif');
+  const layers = await loadAvatarLayers(icon);
+  const canvas = document.createElement('canvas');
+  canvas.width = CELL_WIDTH;
+  canvas.height = CELL_HEIGHT;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Your browser does not support canvas export.');
+  const encoder = createGifEncoder(CELL_WIDTH, CELL_HEIGHT);
+  const timeline = gifTimeline(state);
+  for (let i = 0; i < timeline.length; i++) {
+    context.clearRect(0, 0, CELL_WIDTH, CELL_HEIGHT);
+    renderPetPreview(context, layers, state, timeline[i]);
+    encoder.addFrame(context.getImageData(0, 0, CELL_WIDTH, CELL_HEIGHT).data);
+    onProgress?.(Math.round((i + 1) / timeline.length * 100));
+    // Yield between small batches so the preview, spinner and progress stay responsive.
+    if (i % 4 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+  }
+  return encoder.finish();
+}

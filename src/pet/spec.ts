@@ -123,7 +123,7 @@ function tangent(left: number, right: number, leftDuration: number, rightDuratio
   return (firstWeight + secondWeight) / (firstWeight / left + secondWeight / right);
 }
 
-/** Sample continuous live motion; exports still use the original discrete getFramePose. */
+/** Sample continuous motion for the live preview and GIF; the PNG atlas uses discrete poses. */
 export function getPreviewPose(state: PetState, elapsed: number): FramePose {
   const { durations, total, poses } = PREVIEW_TIMELINES.get(state)!;
   let time = ((elapsed % total) + total) % total;

@@ -22,7 +22,7 @@ import {
   PROJECT_ICON_EXPRESSIONS,
   PROJECT_ICON_PALETTE,
 } from "./utils/projectIcons";
-import { createPetSheet, PetPreview, PET_STATES, type PetState } from "./pet";
+import { createPetSheet, createPetGif, PetPreview, PET_STATES, type PetState } from "./pet";
 
 const INITIAL = formatProjectIconId({
   shapeId: "cloud",
@@ -53,7 +53,8 @@ export default function App() {
   const [name, setName] = useState(saved.name);
   const [state, setState] = useState<PetState>("idle");
   const [paused, setPaused] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<"png" | "gif" | null>(null);
+  const [gifProgress, setGifProgress] = useState(0);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [showHelp, setShowHelp] = useState(false);
@@ -80,13 +81,16 @@ export default function App() {
     setNotice("A new little personality.");
   }
 
-  async function exportPet() {
+  async function exportPet(format: "png" | "gif" = "png") {
     if (exporting) return;
-    setExporting(true);
+    setExporting(format);
+    setGifProgress(0);
     setError("");
     setNotice("");
     try {
-      const blob = await createPetSheet(icon);
+      const blob = format === "gif"
+        ? await createPetGif(icon, state, setGifProgress)
+        : await createPetSheet(icon);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -96,13 +100,17 @@ export default function App() {
           .replace(/[^a-z0-9_-]+/gi, "-")
           .replace(/^-+|-+$/g, "")
           .slice(0, 50) || "my-pet";
-      link.download = `${filename.toLowerCase()}-chatgpt-pet.png`;
+      link.download = format === "gif"
+        ? `${filename.toLowerCase()}-${state}.gif`
+        : `${filename.toLowerCase()}-chatgpt-pet.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      setNotice("Pet exported! Your PNG is ready to upload to ChatGPT.");
-      setShowHelp(true);
+      setNotice(format === "gif"
+        ? "GIF exported! A smooth, transparent loop of your selected move."
+        : "Pet exported! Your PNG is ready to upload to ChatGPT.");
+      if (format === "png") setShowHelp(true);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -110,7 +118,7 @@ export default function App() {
           : "Could not export your pet. Please try again.",
       );
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   }
 
@@ -232,19 +240,31 @@ export default function App() {
             </div>
             <div className="motion-picker">
               <label htmlFor="pet-motion">Try a little move</label>
-              <div className="select-wrap">
-                <select
-                  id="pet-motion"
-                  value={state}
-                  onChange={(e) => setState(e.target.value as PetState)}
+              <div className="motion-actions">
+                <div className="select-wrap">
+                  <select
+                    id="pet-motion"
+                    value={state}
+                    onChange={(e) => setState(e.target.value as PetState)}
+                  >
+                    {PET_STATES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown aria-hidden="true" size={15} />
+                </div>
+                <button
+                  className="gif-button"
+                  disabled={!!exporting}
+                  onClick={() => exportPet("gif")}
+                  aria-label={exporting === "gif" ? `Creating GIF, ${gifProgress}%` : "Export selected move as GIF"}
+                  title={exporting === "gif" ? `Creating GIF… ${gifProgress}%` : "Export selected move · Transparent · 50 fps · Loops forever"}
                 >
-                  {PET_STATES.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown aria-hidden="true" size={15} />
+                  {exporting === "gif" && <LoaderCircle aria-hidden="true" className="spin" size={12} />}
+                  GIF
+                </button>
               </div>
             </div>
             <div className="name-field">
@@ -276,15 +296,15 @@ export default function App() {
           </div>
           <button
             className="export-button"
-            disabled={exporting}
-            onClick={exportPet}
+            disabled={!!exporting}
+            onClick={() => exportPet("png")}
           >
-            {exporting ? (
+            {exporting === "png" ? (
               <LoaderCircle aria-hidden="true" className="spin" size={18} />
             ) : (
               <ArrowDownToLine aria-hidden="true" size={18} />
             )}
-            {exporting ? "Creating your pet…" : "Export ChatGPT pet"}
+            {exporting === "png" ? "Creating your pet…" : "Export ChatGPT pet"}
           </button>
         </section>
         <div className="feedback" role="status" aria-live="polite">
