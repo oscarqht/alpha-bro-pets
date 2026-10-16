@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ProjectIcon } from '../components/ProjectIcon';
 import { getProjectIcon } from '../utils/projectIcons';
-import { CELL_HEIGHT, CELL_WIDTH, PET_STATES, getFramePose, type FramePose, type PetState, type PetVersion } from './spec';
+import { CELL_HEIGHT, CELL_WIDTH, PET_STATES, getFramePose, getPreviewPose, type FramePose, type PetState, type PetVersion } from './spec';
 
 interface AvatarLayers {
   body: HTMLImageElement;
@@ -87,6 +87,11 @@ function paintPose(context: CanvasRenderingContext2D, layers: AvatarLayers, pose
 /** Paint one native-size cell. Callers own clearing so atlas cells and previews use the same pixels. */
 export function renderPetFrame(context: CanvasRenderingContext2D, layers: AvatarLayers, state: PetState, frame: number): void {
   paintPose(context, layers, getFramePose(state, frame));
+}
+
+/** Draw continuously interpolated live motion at the browser refresh rate. */
+export function renderPetPreview(context: CanvasRenderingContext2D, layers: AvatarLayers, state: PetState, elapsed: number): void {
+  paintPose(context, layers, getPreviewPose(state, elapsed));
 }
 
 export async function createPetSheet(icon: string, version: PetVersion = 'v1'): Promise<Blob> {

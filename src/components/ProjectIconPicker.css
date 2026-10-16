@@ -66,3 +66,14 @@
     transition: none !important;
   }
 }
+
+/* Separate masks blend the entry/exit corners without fading carousel controls. */
+.project-shape-track {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 50px, #000 calc(100% - 50px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 50px, #000 calc(100% - 50px), transparent);
+}
+
+.project-shape-track-items {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24px);
+  mask-image: linear-gradient(to bottom, transparent, #000 24px);
+}

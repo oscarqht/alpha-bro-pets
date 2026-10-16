@@ -227,7 +227,9 @@ export const ProjectIconPicker: React.FC<ProjectIconPickerProps> = ({
           className="absolute left-1/2 top-[16px] w-[66px] h-[66px] -ml-[33px] rounded-[20px] bg-[#F5F5F3] dark:bg-white/10 shadow-[inset_0_0_0_1px_#E9E9E6] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] pointer-events-none"
         />
 
-        {/* Shapes along the arc */}
+        {/* Fade only the moving shapes; leave dots, active slot and controls crisp. */}
+        <div className="project-shape-track absolute inset-0">
+          <div className="project-shape-track-items absolute inset-0">
         {PROJECT_AVATAR_SHAPES.map((shape, idx) => {
           let d = (((idx - activeShapeIndex) % shapeCount) + shapeCount) % shapeCount;
           if (d > shapeCount / 2) d -= shapeCount;
@@ -277,6 +279,8 @@ export const ProjectIconPicker: React.FC<ProjectIconPickerProps> = ({
             </button>
           );
         })}
+          </div>
+        </div>
 
         {/* Previous / Next shape cycle triggers on the left/right edges */}
         <button

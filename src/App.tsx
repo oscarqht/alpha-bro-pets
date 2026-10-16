@@ -117,11 +117,11 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <a className="wordmark" href="./" aria-label="Pet Studio / from Raft home">
+        <a className="wordmark" href="./" aria-label="Alpha Bro Pets / from Raft home">
           <span className="brand-icon">
             <ProjectIcon icon={INITIAL} className="w-8 h-8" />
           </span>
-          pet studio<span className="byline">/ from Raft</span>
+          Alpha Bro Pets<span className="byline">/ from Raft</span>
         </a>
         <a
           className="quiet-link"

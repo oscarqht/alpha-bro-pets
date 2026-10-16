@@ -19,3 +19,11 @@ To inspect another downloaded sprite sheet (requires Python Pillow):
 ```sh
 python3 tests/inspect-pet-png.py /absolute/path/to/download.png
 ```
+
+## Smooth preview verification
+
+Measured fresh canvas image changes through `requestAnimationFrame` on 2026-10-16. Before the fix, idle produced 157 browser samples over 1303.7 ms but only 6 visible canvas changes (about 4.6 per second). After interpolation, Chromium idle produced 104.4 visible changes per second; all nine states measured 80.6–119.6 changes per second in 650 ms windows. The test machine supplied about 120 browser samples per second, so these measurements describe this display/browser cadence rather than a guaranteed frame rate on every device. WebKit supplied about 60 samples per second and idle produced 58 changes over 1114 ms (52.1 per second).
+
+Pause froze the exact canvas image, play resumed changes, and changing the reduced-motion preference dynamically froze it again. Switching state and shape remained functional. Both browser export buttons downloaded valid PNGs, independently checked for exact dimensions, populated/empty cells and padding; mobile had no horizontal overflow. All 14 shape exports from the current renderer were byte-for-byte identical to exports made by the pre-change Git HEAD renderer using the same icon inputs in WebKit.
+
+Chromium measured FCP/LCP 132 ms, CLS 0.001, INP 32 ms, and worst long-animation-frame blocking duration 0 ms. WebKit measured FCP/LCP 110 ms, CLS 0. Browser consoles were clear. The Chromium accessibility audit retained the previously documented 78 IBM manual/hidden/tool findings; the final WebKit audit returned no violations. Both Expect sessions were closed. Evidence files use the `fps-` prefix in `tests/evidence`.

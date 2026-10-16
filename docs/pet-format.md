@@ -21,7 +21,10 @@ Source: [OpenAI's Pets guide](https://learn.chatgpt.com/docs/pets), checked Octo
 
 Each row starts at the left edge; unused cells remain completely transparent.
 The sheet contains 57 occupied cells and 15 unused cells. The player and PNG exporter
-use the same frame renderer, drawing the extracted Raft body, eyes and brows.
+share the same pose painter, drawing the extracted Raft body, eyes and brows. The live
+player interpolates smoothly between key poses at the browser’s refresh rate; export
+keeps the fixed ChatGPT frame counts. Actual playback timing in ChatGPT is controlled
+by ChatGPT.
 Animation adds squash, lean, gaze changes and a matching attached arm for waving.
 The jump changes vertical position and returns to its resting baseline.
 

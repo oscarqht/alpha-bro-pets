@@ -104,3 +104,56 @@ export function frameAtTime(state: PetState, elapsed: number): number {
   }
   return 0;
 }
+
+// Cache the tiny cyclic timelines: preview rendering must not rebuild poses each refresh.
+const PREVIEW_TIMELINES = new Map(PET_STATES.map(state => {
+  const durations: readonly number[] = state.durations;
+  return [state.id, {
+    durations,
+    total: durations.reduce((sum, duration) => sum + duration, 0),
+    poses: Array.from({ length: state.frames }, (_, frame) => getFramePose(state.id, frame)),
+  }];
+}));
+
+/** A shape-preserving tangent: continuous velocity without overshooting validated poses. */
+function tangent(left: number, right: number, leftDuration: number, rightDuration: number): number {
+  if (left * right <= 0) return 0;
+  const firstWeight = 2 * rightDuration + leftDuration;
+  const secondWeight = rightDuration + 2 * leftDuration;
+  return (firstWeight + secondWeight) / (firstWeight / left + secondWeight / right);
+}
+
+/** Sample continuous live motion; exports still use the original discrete getFramePose. */
+export function getPreviewPose(state: PetState, elapsed: number): FramePose {
+  const { durations, total, poses } = PREVIEW_TIMELINES.get(state)!;
+  let time = ((elapsed % total) + total) % total;
+  let index = 0;
+  while (index < poses.length - 1 && time >= durations[index]) {
+    time -= durations[index++];
+  }
+  const previousIndex = (index + poses.length - 1) % poses.length;
+  const nextIndex = (index + 1) % poses.length;
+  const followingIndex = (index + 2) % poses.length;
+  const current = poses[index];
+  if (time === 0) return { ...current };
+  const duration = durations[index];
+  const amount = time / duration;
+  const squared = amount * amount;
+  const cubed = squared * amount;
+  const result = { ...current };
+  for (const key of Object.keys(current) as (keyof FramePose)[]) {
+    const from = current[key];
+    const to = poses[nextIndex][key];
+    if (from === null || to === null) continue;
+    const previous = poses[previousIndex][key] ?? from;
+    const following = poses[followingIndex][key] ?? to;
+    const slope = (to - from) / duration;
+    const startVelocity = tangent((from - previous) / durations[previousIndex], slope, durations[previousIndex], duration);
+    const endVelocity = tangent(slope, (following - to) / durations[nextIndex], duration, durations[nextIndex]);
+    result[key] = (2 * cubed - 3 * squared + 1) * from
+      + (cubed - 2 * squared + amount) * duration * startVelocity
+      + (-2 * cubed + 3 * squared) * to
+      + (cubed - squared) * duration * endVelocity;
+  }
+  return result;
+}

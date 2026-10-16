@@ -1,4 +1,6 @@
-# Pet Studio
+# Alpha Bro Pets
+
+![Alpha Bro Pets avatar creator and live animation preview](docs/assets/alpha-bro-pets-poster.jpg)
 
 A standalone Vite + React + TypeScript app that extracts Raft’s project avatar
 selector and turns the selected avatar into a downloadable ChatGPT pet sprite sheet.

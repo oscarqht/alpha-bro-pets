@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { CELL_HEIGHT, CELL_WIDTH, frameAtTime, type PetState } from './spec';
-import { loadAvatarLayers, renderPetFrame } from './renderer';
+import { CELL_HEIGHT, CELL_WIDTH, type PetState } from './spec';
+import { loadAvatarLayers, renderPetPreview } from './renderer';
 
 export interface PetPreviewProps {
   icon: string;
@@ -37,7 +37,7 @@ export function PetPreview({ icon, state, className, paused = false }: PetPrevie
         if (!paused && !reducedMotion) playbackRef.current.elapsed += now - previous;
         previous = now;
         context.clearRect(0, 0, CELL_WIDTH, CELL_HEIGHT);
-        renderPetFrame(context, layers, state, reducedMotion ? 0 : frameAtTime(state, playbackRef.current.elapsed));
+        renderPetPreview(context, layers, state, reducedMotion ? 0 : playbackRef.current.elapsed);
         if (!paused && !reducedMotion) request = requestAnimationFrame(draw);
       };
       draw(previous);
