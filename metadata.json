@@ -1,0 +1,6 @@
+{
+  "name": "Alpha Bro Pets",
+  "description": "Make a little companion. Customize a Raft avatar and export an animated pet for ChatGPT.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -27,6 +27,10 @@ export interface FramePose {
   faceY: number;
   faceScaleY: number;
   wave: number | null;
+  typeLx: number | null;
+  typeLy: number | null;
+  typeRx: number | null;
+  typeRy: number | null;
 }
 
 /** Pure pose specification shared by the live player and the exported atlas. */
@@ -35,7 +39,21 @@ export function getFramePose(state: PetState, frame: number): FramePose {
   const index = ((frame % definition.frames) + definition.frames) % definition.frames;
   const phase = index / definition.frames * Math.PI * 2;
   const sin = Math.sin(phase);
-  const pose: FramePose = { x: 0, lift: 0, sx: 1, sy: 1, tilt: 0, faceX: 0, faceY: 0, faceScaleY: 1, wave: null };
+  const pose: FramePose = {
+    x: 0,
+    lift: 0,
+    sx: 1,
+    sy: 1,
+    tilt: 0,
+    faceX: 0,
+    faceY: 0,
+    faceScaleY: 1,
+    wave: null,
+    typeLx: null,
+    typeLy: null,
+    typeRx: null,
+    typeRy: null,
+  };
   switch (state) {
     case 'idle':
       pose.sx = 1 + sin * 0.012;
@@ -78,13 +96,23 @@ export function getFramePose(state: PetState, frame: number): FramePose {
       pose.faceY = -6 - Math.abs(sin) * 2;
       pose.sy = 1 + sin * 0.012;
       break;
-    case 'running':
-      pose.sx = 1 + sin * 0.025;
-      pose.sy = 1 - sin * 0.025;
-      pose.faceX = sin * 5;
-      pose.faceY = 3 + Math.cos(phase * 2) * 3;
+    case 'running': {
+      pose.sx = 1 + sin * 0.03;
+      pose.sy = 1 - sin * 0.03;
+      pose.tilt = [-0.03, 0.03, -0.02, 0.03, -0.03, 0.02][index];
+      pose.faceX = sin * 4;
+      pose.faceY = 4 + Math.cos(phase * 2) * 3;
       pose.faceScaleY = index % 3 === 1 ? 0.7 : 1;
+      const typeLxs = [-20, -12, -18, -8, -24, -16];
+      const typeLys = [-9, -22, -9, -18, -9, -24];
+      const typeRxs = [14, 20, 8, 16, 22, 12];
+      const typeRys = [-24, -9, -18, -9, -26, -9];
+      pose.typeLx = typeLxs[index];
+      pose.typeLy = typeLys[index];
+      pose.typeRx = typeRxs[index];
+      pose.typeRy = typeRys[index];
       break;
+    }
     case 'review':
       pose.tilt = -0.07 + sin * 0.045;
       pose.faceX = sin * 9;

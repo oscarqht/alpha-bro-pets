@@ -62,6 +62,230 @@ export function loadAvatarLayers(icon: string): Promise<AvatarLayers> {
   return promise;
 }
 
+function drawRoundRect(context: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  if (typeof context.roundRect === 'function') {
+    context.beginPath();
+    context.roundRect(x, y, w, h, r);
+  } else {
+    context.beginPath();
+    context.moveTo(x + r, y);
+    context.lineTo(x + w - r, y);
+    context.quadraticCurveTo(x + w, y, x + w, y + r);
+    context.lineTo(x + w, y + h - r);
+    context.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    context.lineTo(x + r, y + h);
+    context.quadraticCurveTo(x, y + h, x, y + h - r);
+    context.lineTo(x, y + r);
+    context.quadraticCurveTo(x, y, x + r, y);
+    context.closePath();
+  }
+}
+
+function paintTyping(context: CanvasRenderingContext2D, layers: AvatarLayers, pose: FramePose): void {
+  const typeLx = pose.typeLx!;
+  const typeLy = pose.typeLy!;
+  const typeRx = pose.typeRx!;
+  const typeRy = pose.typeRy!;
+
+  // 1. Keyboard subtle drop shadow
+  context.save();
+  context.fillStyle = 'rgba(0, 0, 0, 0.16)';
+  context.beginPath();
+  context.ellipse(0, -1, 35, 4, 0, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+
+  // 2. Keyboard casing (sleek dark mechanical keyboard)
+  const kbX = -32;
+  const kbY = -18;
+  const kbW = 64;
+  const kbH = 16;
+  const kbR = 3.5;
+
+  context.save();
+  // Chassis outer edge
+  context.fillStyle = '#181a22';
+  drawRoundRect(context, kbX, kbY, kbW, kbH, kbR);
+  context.fill();
+
+  // Chassis inner plate
+  context.fillStyle = '#222530';
+  drawRoundRect(context, kbX + 1, kbY + 1, kbW - 2, kbH - 2, kbR - 1);
+  context.fill();
+
+  // Top metallic highlight rim
+  context.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(kbX + 3, kbY + 1.2);
+  context.lineTo(kbX + kbW - 3, kbY + 1.2);
+  context.stroke();
+
+  // 3. Keycaps layout
+  const keys = [
+    // Top row
+    { x: -28, y: -15.5, w: 9.5, h: 5 },
+    { x: -17, y: -15.5, w: 9.5, h: 5 },
+    { x: -6, y: -15.5, w: 12, h: 5 },
+    { x: 7.5, y: -15.5, w: 9.5, h: 5 },
+    { x: 18.5, y: -15.5, w: 9.5, h: 5 },
+    // Bottom row
+    { x: -28, y: -9, w: 11, h: 5 },
+    { x: -15.5, y: -9, w: 31, h: 5 }, // Spacebar
+    { x: 17, y: -9, w: 11, h: 5 },
+  ];
+
+  for (const k of keys) {
+    const hitL = typeLy >= -11 && Math.abs(typeLx - (k.x + k.w / 2)) < k.w / 2 + 2.5;
+    const hitR = typeRy >= -11 && Math.abs(typeRx - (k.x + k.w / 2)) < k.w / 2 + 2.5;
+    const isHit = hitL || hitR;
+
+    const ky = isHit ? k.y + 0.8 : k.y;
+    context.fillStyle = isHit ? '#38bdf8' : '#333748';
+    drawRoundRect(context, k.x, ky, k.w, k.h, 1.2);
+    context.fill();
+
+    if (!isHit) {
+      context.fillStyle = '#454c60';
+      context.fillRect(k.x + 0.8, ky + 0.5, k.w - 1.6, 1);
+    } else {
+      context.fillStyle = '#ffffff';
+      context.fillRect(k.x + 1, ky + 0.8, k.w - 2, 1.2);
+    }
+  }
+  context.restore();
+
+  // 4. Arms & Paws
+  const shoulderDist = Math.max(26, Math.min(40, (layers.waveAnchorX - 18) * 0.72));
+  const shoulderY = -34;
+
+  // Frantic motion blur afterimages (ghost paws)
+  context.save();
+  context.globalAlpha = 0.28;
+  context.strokeStyle = layers.color;
+  context.fillStyle = layers.color;
+  context.lineWidth = 6;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+
+  const ghostLy = typeLy < -15 ? typeLy + 6 : typeLy - 6;
+  context.beginPath();
+  context.moveTo(-shoulderDist, shoulderY);
+  context.quadraticCurveTo(-shoulderDist - 8, (shoulderY + ghostLy) / 2, typeLx - 2, ghostLy);
+  context.stroke();
+  context.beginPath();
+  context.arc(typeLx - 2, ghostLy, 4.5, 0, Math.PI * 2);
+  context.fill();
+
+  const ghostRy = typeRy < -15 ? typeRy + 6 : typeRy - 6;
+  context.beginPath();
+  context.moveTo(shoulderDist, shoulderY);
+  context.quadraticCurveTo(shoulderDist + 8, (shoulderY + ghostRy) / 2, typeRx + 2, ghostRy);
+  context.stroke();
+  context.beginPath();
+  context.arc(typeRx + 2, ghostRy, 4.5, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+
+  // Primary Arms
+  context.save();
+  context.strokeStyle = layers.color;
+  context.fillStyle = layers.color;
+  context.lineWidth = 8;
+  context.lineCap = 'round';
+  context.lineJoin = 'round';
+
+  // Left arm
+  context.beginPath();
+  context.moveTo(-shoulderDist, shoulderY);
+  context.quadraticCurveTo(-shoulderDist - 6, (shoulderY + typeLy) / 2 - 2, typeLx, typeLy);
+  context.stroke();
+  context.beginPath();
+  context.arc(typeLx, typeLy, 5.5, 0, Math.PI * 2);
+  context.fill();
+
+  // Right arm
+  context.beginPath();
+  context.moveTo(shoulderDist, shoulderY);
+  context.quadraticCurveTo(shoulderDist + 6, (shoulderY + typeRy) / 2 - 2, typeRx, typeRy);
+  context.stroke();
+  context.beginPath();
+  context.arc(typeRx, typeRy, 5.5, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+
+  // 5. Frantic impact sparks & speed lines
+  context.save();
+  if (typeLy >= -11) {
+    // Left hand strike sparks
+    context.strokeStyle = '#ffffff';
+    context.lineWidth = 1.5;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(typeLx - 4, -13);
+    context.lineTo(typeLx - 7, -18);
+    context.moveTo(typeLx, -14);
+    context.lineTo(typeLx, -20);
+    context.moveTo(typeLx + 4, -13);
+    context.lineTo(typeLx + 7, -18);
+    context.stroke();
+  } else {
+    // Upward motion speed lines
+    context.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    context.lineWidth = 1.2;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(typeLx - 2, typeLy - 7);
+    context.lineTo(typeLx - 2, typeLy - 13);
+    context.moveTo(typeLx + 2, typeLy - 6);
+    context.lineTo(typeLx + 2, typeLy - 11);
+    context.stroke();
+  }
+
+  if (typeRy >= -11) {
+    // Right hand strike sparks
+    context.strokeStyle = '#ffffff';
+    context.lineWidth = 1.5;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(typeRx - 4, -13);
+    context.lineTo(typeRx - 7, -18);
+    context.moveTo(typeRx, -14);
+    context.lineTo(typeRx, -20);
+    context.moveTo(typeRx + 4, -13);
+    context.lineTo(typeRx + 7, -18);
+    context.stroke();
+  } else {
+    // Upward motion speed lines
+    context.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    context.lineWidth = 1.2;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(typeRx - 2, typeRy - 7);
+    context.lineTo(typeRx - 2, typeRy - 13);
+    context.moveTo(typeRx + 2, typeRy - 6);
+    context.lineTo(typeRx + 2, typeRy - 11);
+    context.stroke();
+  }
+
+  // Intense exertion sweat droplet flying off
+  if (typeLy <= -20 || typeRy <= -20) {
+    const sweatX = shoulderDist + 6;
+    const sweatY = -56;
+    context.fillStyle = '#38bdf8';
+    context.beginPath();
+    context.arc(sweatX, sweatY, 2.5, 0, Math.PI * 2);
+    context.fill();
+    context.beginPath();
+    context.moveTo(sweatX - 1.8, sweatY - 0.5);
+    context.lineTo(sweatX + 1.8, sweatY - 0.5);
+    context.lineTo(sweatX, sweatY - 4.5);
+    context.closePath();
+    context.fill();
+  }
+  context.restore();
+}
+
 function paintPose(context: CanvasRenderingContext2D, layers: AvatarLayers, pose: FramePose): void {
   context.save();
   // At the 40px jump apex the full 144px SVG viewport still has 1px of top padding.
@@ -96,6 +320,9 @@ function paintPose(context: CanvasRenderingContext2D, layers: AvatarLayers, pose
   context.scale(1, pose.faceScaleY);
   context.drawImage(layers.face, -72, -72, 144, 144);
   context.restore();
+  if (pose.typeLx !== null && pose.typeLy !== null && pose.typeRx !== null && pose.typeRy !== null) {
+    paintTyping(context, layers, pose);
+  }
   context.restore();
 }
 
