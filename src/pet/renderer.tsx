@@ -9,6 +9,7 @@ interface AvatarLayers {
   face: HTMLImageElement;
   color: string;
   waveAnchorX: number;
+  bodyRadius: number;
 }
 
 const imageCache = new Map<string, Promise<AvatarLayers>>();
@@ -53,7 +54,8 @@ export function loadAvatarLayers(icon: string): Promise<AvatarLayers> {
         if (pixels[(y * 144 + x) * 4 + 3] > 0) right = x;
       }
     }
-    return { body: bodyImage, face: faceImage, color: getProjectIcon(icon).color, waveAnchorX: right - 72 + 18 };
+    const bodyRadius = right - 72;
+    return { body: bodyImage, face: faceImage, color: getProjectIcon(icon).color, waveAnchorX: bodyRadius + 15, bodyRadius };
   })();
   imageCache.set(icon, promise);
   // A failed image must be retryable. Limit retained variants during long editing sessions.
@@ -156,7 +158,7 @@ function paintTyping(context: CanvasRenderingContext2D, layers: AvatarLayers, po
   context.restore();
 
   // 4. Arms & Paws
-  const shoulderDist = Math.max(26, Math.min(40, (layers.waveAnchorX - 18) * 0.72));
+  const shoulderDist = Math.max(26, Math.min(40, layers.bodyRadius * 0.72));
   const shoulderY = -34;
 
   // Frantic motion blur afterimages (ghost paws)
@@ -293,15 +295,6 @@ function paintPose(context: CanvasRenderingContext2D, layers: AvatarLayers, pose
   context.rotate(pose.tilt);
   context.scale(pose.sx, pose.sy);
   if (pose.wave !== null) {
-    // Keep the forearm outside the entire silhouette throughout its sweep. The
-    // upper arm starts behind the center so even tapered shapes stay attached.
-    context.strokeStyle = layers.color;
-    context.lineWidth = 10;
-    context.lineCap = 'round';
-    context.beginPath();
-    context.moveTo(0, -59);
-    context.lineTo(layers.waveAnchorX, -59);
-    context.stroke();
     context.save();
     context.translate(layers.waveAnchorX, -59);
     context.rotate(pose.wave);

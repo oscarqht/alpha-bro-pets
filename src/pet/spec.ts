@@ -72,8 +72,8 @@ export function getFramePose(state: PetState, frame: number): FramePose {
       break;
     }
     case 'waving':
-      pose.x = -8; // Leave room for the raised hand inside the shared export cell.
-      pose.wave = [-0.4, 0.4, -0.35, 0.35][index];
+      pose.x = 0; // Keep the character main body in center
+      pose.wave = [-0.2, 0.4, -0.15, 0.35][index];
       pose.tilt = sin * 0.04;
       pose.faceY = -2;
       break;
