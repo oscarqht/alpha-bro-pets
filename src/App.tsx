@@ -9,6 +9,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Share2,
   Shuffle,
   Sparkles,
 } from "lucide-react";
@@ -22,6 +23,10 @@ import {
   PROJECT_ICON_EXPRESSIONS,
   PROJECT_ICON_PALETTE,
 } from "./utils/projectIcons";
+import {
+  buildPetHash,
+  getPetIconFromHash,
+} from "./utils/petHash";
 import { createPetSheet, createPetGif, PetPreview, PET_STATES, type PetState } from "./pet";
 
 const INITIAL = formatProjectIconId({
@@ -30,7 +35,27 @@ const INITIAL = formatProjectIconId({
   color: "#FFC20E",
 });
 const STORAGE_KEY = "raft-pet-studio:v1";
+
 function loadSaved(): { icon: string; name: string } {
+  // Check URL hash first (allows sharing URLs like #shape=triangle&eyes=toon&color=FFC20E)
+  if (typeof window !== "undefined" && window.location.hash) {
+    const fromHash = getPetIconFromHash(window.location.hash, INITIAL);
+    if (fromHash) {
+      let petName = fromHash.name;
+      if (!petName) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+          if (saved && typeof saved.name === "string") {
+            petName = saved.name.slice(0, 40);
+          }
+        } catch {
+          /* Storage blocked */
+        }
+      }
+      return { icon: fromHash.icon, name: petName || "Sunny" };
+    }
+  }
+
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
     if (
@@ -60,13 +85,32 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const avatar = getProjectIcon(icon);
 
+  // Sync current avatar shape, eyes, and color to the URL hash and localStorage
   useEffect(() => {
+    const currentAvatar = getProjectIcon(icon);
+    const hash = buildPetHash(currentAvatar);
+    if (typeof window !== "undefined" && window.location.hash !== hash) {
+      window.history.replaceState(null, "", hash);
+    }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ icon, name }));
     } catch {
       /* Private browsing can disable storage. */
     }
   }, [icon, name]);
+
+  // Listen for browser navigation or manual address bar hash changes
+  useEffect(() => {
+    function handleHashChange() {
+      const fromHash = getPetIconFromHash(window.location.hash, icon);
+      if (fromHash && fromHash.icon !== icon) {
+        setIcon(fromHash.icon);
+        if (fromHash.name) setName(fromHash.name);
+      }
+    }
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [icon]);
 
   function randomize() {
     const pick = <T,>(items: readonly T[]) =>
@@ -189,6 +233,21 @@ export default function App() {
                   )?.label
                 }
               </span>
+              <button
+                className="icon-button"
+                aria-label="Copy share link"
+                title="Copy link with selected shape, eyes, and color"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    setNotice("Share link copied! Anyone opening this URL gets this exact pet.");
+                  } catch {
+                    setNotice("URL ready to copy from your browser address bar.");
+                  }
+                }}
+              >
+                <Share2 aria-hidden="true" size={15} />
+              </button>
               <button
                 className="icon-button"
                 aria-label="Reset avatar"
