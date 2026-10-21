@@ -7,6 +7,14 @@ import {
   getProjectIcon,
   type ProjectIconDefinition,
 } from './projectIcons';
+import { PET_STATES, type PetState } from '../pet/spec';
+
+export type PetViewMode = '2d' | '3d' | 'furry';
+
+interface PetPreviewSelection {
+  mode?: PetViewMode;
+  action?: PetState;
+}
 
 // Shape aliases for flexible URL matching
 const SHAPE_ALIASES: Record<string, string> = {
@@ -171,7 +179,7 @@ export function resolveColorHex(raw?: string | null): string | null {
   return null;
 }
 
-export interface ParsedPetHash {
+export interface ParsedPetHash extends PetPreviewSelection {
   shapeId?: string;
   expressionId?: string;
   color?: string;
@@ -206,8 +214,13 @@ export function parsePetHash(hash?: string | null): ParsedPetHash | null {
   const expressionId = resolveExpressionId(rawEyes, rawBrows);
   const color = resolveColorHex(rawColor);
   const name = rawName ? rawName.trim().slice(0, 40) : undefined;
+  const rawMode = params.get('mode')?.trim().toLowerCase();
+  const mode = rawMode === '2d' || rawMode === '3d' || rawMode === 'furry'
+    ? rawMode : undefined;
+  const rawAction = params.get('action')?.trim().toLowerCase();
+  const action = PET_STATES.find((state) => state.id === rawAction)?.id;
 
-  if (!shapeId && !expressionId && !color && !name) {
+  if (!shapeId && !expressionId && !color && !name && !mode && !action) {
     return null;
   }
 
@@ -216,6 +229,8 @@ export function parsePetHash(hash?: string | null): ParsedPetHash | null {
     expressionId: expressionId || undefined,
     color: color || undefined,
     name,
+    ...(mode && { mode }),
+    ...(action && { action }),
   };
 }
 
@@ -223,7 +238,7 @@ export function parsePetHash(hash?: string | null): ParsedPetHash | null {
  * Builds the URL hash query string from the current avatar definition.
  * e.g. "#shape=triangle&eyes=toon&color=FFC20E" or "#shape=triangle&eyes=toon-flat&color=FFC20E"
  */
-export function buildPetHash(avatar: ProjectIconDefinition): string {
+export function buildPetHash(avatar: ProjectIconDefinition, preview: PetPreviewSelection = {}): string {
   const shape = avatar.shapeId;
   const eyes =
     avatar.brows && avatar.brows !== 'none'
@@ -235,6 +250,8 @@ export function buildPetHash(avatar: ProjectIconDefinition): string {
   params.set('shape', shape);
   params.set('eyes', eyes);
   params.set('color', color);
+  if (preview.mode) params.set('mode', preview.mode);
+  if (preview.action) params.set('action', preview.action);
 
   return `#${params.toString()}`;
 }
@@ -245,7 +262,7 @@ export function buildPetHash(avatar: ProjectIconDefinition): string {
 export function getPetIconFromHash(
   hash?: string | null,
   fallbackIconId?: string,
-): { icon: string; name?: string } | null {
+): ({ icon: string; name?: string } & PetPreviewSelection) | null {
   const parsed = parsePetHash(hash);
   if (!parsed) return null;
 
@@ -264,5 +281,7 @@ export function getPetIconFromHash(
   return {
     icon,
     name: parsed.name,
+    ...(parsed.mode && { mode: parsed.mode }),
+    ...(parsed.action && { action: parsed.action }),
   };
 }
