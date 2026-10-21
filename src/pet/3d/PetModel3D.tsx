@@ -27,6 +27,10 @@ export const PetModel3D: React.FC<PetModel3DProps> = ({
   // Playback timer ref
   const elapsedRef = useRef(0);
 
+  useEffect(() => {
+    elapsedRef.current = 0;
+  }, [state]);
+
   // Interactive playful click boop
   const [boopTime, setBoopTime] = useState<number | null>(null);
   const [, setHovered] = useState(false);

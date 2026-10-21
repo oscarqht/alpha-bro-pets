@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { ProjectIconDefinition, ProjectAvatarEyeType, ProjectAvatarBrowType } from '../../utils/projectIcons';
-import type { FramePose } from '../spec';
+import { getSweatProgress, type FramePose } from '../spec';
 import { getShape3D } from './pet3dShapes';
 
 export interface Pet3DInstance {
@@ -369,11 +369,15 @@ export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
   const sweatMat = new THREE.MeshPhysicalMaterial({
     color: '#38bdf8',
     transmission: 0.85,
-    opacity: 0.9,
+    opacity: 0.95,
     transparent: true,
-    roughness: 0.1,
+    roughness: 0.08,
+    metalness: 0.02,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.1,
     ior: 1.33,
   });
+  const sweatHighlightMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
   const armMat = new THREE.MeshStandardMaterial({ color: avatar.color, roughness: 0.28, metalness: 0.04 });
   const ghostArmMat = new THREE.MeshStandardMaterial({
     color: avatar.color,
@@ -384,7 +388,7 @@ export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
 
   disposables.materials.push(
     chassisMat, bezelPlateMat, keyDefaultMat, keyAccentMat, keyActiveMat,
-    sparkMat, goldSparkMat, sweatMat, armMat, ghostArmMat
+    sparkMat, goldSparkMat, sweatMat, sweatHighlightMat, armMat, ghostArmMat
   );
 
   // Keyboard casing
@@ -498,20 +502,96 @@ export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
   rightSparkGroup.add(rs1, rs2);
   kbGroup.add(rightSparkGroup);
 
-  // Sweat Droplet
-  const sweatConeGeom = new THREE.ConeGeometry(1, 1.6, 12);
-  const sweatSphereGeom = new THREE.SphereGeometry(0.045, 12, 12);
-  disposables.geometries.push(sweatConeGeom, sweatSphereGeom);
+  // Multi-droplet cascading sweat system for head
+  const sweatConeGeom = new THREE.ConeGeometry(1, 1.8, 14);
+  const sweatSphereGeom = new THREE.SphereGeometry(1, 14, 14);
+  const sweatHighlightGeom = new THREE.SphereGeometry(1, 10, 10);
+  const sweatSplashGeom = new THREE.SphereGeometry(1, 10, 10);
+  disposables.geometries.push(
+    sweatConeGeom,
+    sweatSphereGeom,
+    sweatHighlightGeom,
+    sweatSplashGeom
+  );
 
-  const sweatGroup = new THREE.Group();
-  sweatGroup.position.set(shoulderDist * 0.95 + 0.08, 0.55, 0.22);
-  const sc1 = new THREE.Mesh(sweatConeGeom, sweatMat);
-  sc1.scale.set(0.045, 0.075, 0.045);
-  sc1.rotation.set(0, 0, -0.4);
-  const sc2 = new THREE.Mesh(sweatSphereGeom, sweatMat);
-  sc2.position.set(0, -0.04, 0);
-  sweatGroup.add(sc1, sc2);
-  kbGroup.add(sweatGroup);
+  const sweatSystemGroup = new THREE.Group();
+  kbGroup.add(sweatSystemGroup);
+
+  const widthRatio3D = Math.max(0.75, Math.min(1.25, shapeData.radius / 0.9));
+  const topY3D = Math.max(0.65, Math.min(1.05, shapeData.topY));
+
+  const dropConfigs3D = [
+    // Drop 1: Primary right forehead drip - trickles down past right temple/brow
+    {
+      xStart: 0.22 * widthRatio3D,
+      xEnd: 0.38 * widthRatio3D,
+      yStart: topY3D * 0.74,
+      yEnd: topY3D * 0.08,
+      phaseOffset: 0.05,
+      radius: 0.052,
+    },
+    // Drop 2: Secondary right temple drip - follows slightly higher & later
+    {
+      xStart: 0.28 * widthRatio3D,
+      xEnd: 0.44 * widthRatio3D,
+      yStart: topY3D * 0.60,
+      yEnd: -0.06,
+      phaseOffset: 0.52,
+      radius: 0.040,
+    },
+    // Drop 3: Primary left forehead drip - trickles down past left temple/brow
+    {
+      xStart: -0.22 * widthRatio3D,
+      xEnd: -0.38 * widthRatio3D,
+      yStart: topY3D * 0.72,
+      yEnd: topY3D * 0.06,
+      phaseOffset: 0.28,
+      radius: 0.048,
+    },
+    // Drop 4: Left crown / upper bead - trickles down higher on the left side
+    {
+      xStart: -0.15 * widthRatio3D,
+      xEnd: -0.28 * widthRatio3D,
+      yStart: topY3D * 0.82,
+      yEnd: topY3D * 0.22,
+      phaseOffset: 0.76,
+      radius: 0.035,
+    },
+  ];
+
+  const sweatDropItems = dropConfigs3D.map((cfg) => {
+    const dropGroup = new THREE.Group();
+
+    // Bulbous lower drop
+    const bulbMesh = new THREE.Mesh(sweatSphereGeom, sweatMat);
+    bulbMesh.position.set(0, -0.3, 0);
+    bulbMesh.scale.set(1, 1, 0.7);
+    bulbMesh.castShadow = true;
+    dropGroup.add(bulbMesh);
+
+    // Tapered cone upper drop pointing upwards along Y
+    const coneMesh = new THREE.Mesh(sweatConeGeom, sweatMat);
+    coneMesh.position.set(0, 0.45, 0);
+    coneMesh.scale.set(1, 1, 0.7);
+    coneMesh.castShadow = true;
+    dropGroup.add(coneMesh);
+
+    // Bright specular highlight (glossy anime water shine)
+    const highlightMesh = new THREE.Mesh(sweatHighlightGeom, sweatHighlightMat);
+    highlightMesh.position.set(-0.35, 0, 0.55);
+    highlightMesh.scale.set(0.3, 0.38, 0.2);
+    dropGroup.add(highlightMesh);
+
+    // Micro splash bead
+    const splashMesh = new THREE.Mesh(sweatSplashGeom, sweatMat);
+    splashMesh.scale.set(0.35, 0.35, 0.35);
+    splashMesh.visible = false;
+    dropGroup.add(splashMesh);
+
+    sweatSystemGroup.add(dropGroup);
+
+    return { cfg, dropGroup, splashMesh };
+  });
 
   // Dynamic arm meshes holders
   let leftArmMesh: THREE.Mesh | null = null;
@@ -648,8 +728,74 @@ export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
     rightSparkGroup.visible = hitR;
     if (hitR) rightSparkGroup.position.set(rightPawX, rightPawY + 0.08, rightPawZ);
 
-    // Sweat
-    sweatGroup.visible = typeLy <= -20 || typeRy <= -20;
+    // Multi-droplet cascading sweat animation on head
+    const sweatProgress = getSweatProgress(pose) ?? 0;
+    const frontHeadZ = 0.325;
+
+    for (const item of sweatDropItems) {
+      const { cfg, dropGroup, splashMesh } = item;
+      const t = ((sweatProgress + cfg.phaseOffset) % 1 + 1) % 1;
+
+      let currX: number;
+      let currY: number;
+      let stretchY = 0;
+      let opacity = 1;
+      let currRadius = cfg.radius;
+
+      if (t < 0.18) {
+        // 1. Forming phase: emerges as small bead at head/forehead
+        const formT = t / 0.18;
+        currX = cfg.xStart;
+        currY = cfg.yStart;
+        currRadius = cfg.radius * (0.35 + 0.65 * formT);
+        stretchY = 0.05;
+        opacity = formT;
+        splashMesh.visible = false;
+      } else if (t < 0.74) {
+        // 2. Trickling / flowing down phase (accelerating down along head contour)
+        const flowT = (t - 0.18) / 0.56;
+        const ease = flowT * flowT; // gravity ease
+        currX = cfg.xStart + (cfg.xEnd - cfg.xStart) * ease;
+        currY = cfg.yStart + (cfg.yEnd - cfg.yStart) * ease;
+        stretchY = Math.sin(flowT * Math.PI) * 0.75;
+        opacity = 1;
+        splashMesh.visible = false;
+      } else {
+        // 3. Detaching & dripping off phase: drops rapidly below cheek/chin and fades out
+        const dropT = (t - 0.74) / 0.26;
+        currX = cfg.xEnd + (cfg.xEnd > 0 ? 0.04 : -0.04) * dropT;
+        currY = cfg.yEnd - 0.22 * dropT * dropT;
+        stretchY = 0.4 * (1 - dropT);
+        opacity = Math.max(0, 1 - dropT * 1.3);
+
+        // Micro splash bead falls faster below the drop
+        if (t > 0.75 && t < 0.94) {
+          splashMesh.visible = true;
+          const splashT = (t - 0.75) / 0.19;
+          splashMesh.position.set(
+            (cfg.xEnd > 0 ? 0.03 : -0.03) * splashT,
+            -0.12 - 0.16 * splashT,
+            0
+          );
+        } else {
+          splashMesh.visible = false;
+        }
+      }
+
+      if (opacity <= 0.02) {
+        dropGroup.visible = false;
+        continue;
+      }
+
+      dropGroup.visible = true;
+      dropGroup.position.set(currX, currY, frontHeadZ);
+
+      // Scale teardrop with vertical stretch
+      const sx = currRadius * 0.95;
+      const sy = currRadius * (1 + stretchY);
+      const sz = currRadius * 0.75;
+      dropGroup.scale.set(sx, sy, sz);
+    }
   }
 
   function applyPose(pose: FramePose, boopOffset?: { y: number; scale: number }) {

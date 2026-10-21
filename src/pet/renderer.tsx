@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ProjectIcon } from '../components/ProjectIcon';
 import { getProjectIcon } from '../utils/projectIcons';
-import { CELL_HEIGHT, CELL_WIDTH, PET_STATES, getFramePose, getPreviewPose, type FramePose, type PetState, type PetVersion } from './spec';
+import { CELL_HEIGHT, CELL_WIDTH, PET_STATES, getFramePose, getPreviewPose, getSweatProgress, type FramePose, type PetState, type PetVersion } from './spec';
 
 interface AvatarLayers {
   body: HTMLImageElement;
@@ -270,20 +270,132 @@ function paintTyping(context: CanvasRenderingContext2D, layers: AvatarLayers, po
     context.stroke();
   }
 
-  // Intense exertion sweat droplet flying off
-  if (typeLy <= -20 || typeRy <= -20) {
-    const sweatX = shoulderDist + 6;
-    const sweatY = -56;
-    context.fillStyle = '#38bdf8';
+  // Multi-droplet cascading sweat dripping down from the head
+  const sweatProgress = getSweatProgress(pose) ?? 0;
+  const radiusRatio = Math.max(0.75, Math.min(1.25, layers.bodyRadius / 48));
+
+  // 4 distinct sweat drops positioned on the forehead and temples that trickle down
+  const sweatDropConfigs = [
+    // Drop 1: Primary right forehead drip - trickles down past right temple/brow
+    {
+      xStart: 18 * radiusRatio,
+      xEnd: 32 * radiusRatio,
+      yStart: -108,
+      yEnd: -54,
+      phaseOffset: 0.05,
+      radius: 3.3,
+    },
+    // Drop 2: Secondary right temple drip - follows slightly higher & later
+    {
+      xStart: 25 * radiusRatio,
+      xEnd: 37 * radiusRatio,
+      yStart: -98,
+      yEnd: -46,
+      phaseOffset: 0.52,
+      radius: 2.6,
+    },
+    // Drop 3: Primary left forehead drip - trickles down past left temple/brow
+    {
+      xStart: -18 * radiusRatio,
+      xEnd: -32 * radiusRatio,
+      yStart: -106,
+      yEnd: -52,
+      phaseOffset: 0.28,
+      radius: 3.0,
+    },
+    // Drop 4: Left crown / upper bead - trickles down higher on the left side
+    {
+      xStart: -13 * radiusRatio,
+      xEnd: -24 * radiusRatio,
+      yStart: -114,
+      yEnd: -64,
+      phaseOffset: 0.76,
+      radius: 2.2,
+    },
+  ];
+
+  for (const cfg of sweatDropConfigs) {
+    const t = ((sweatProgress + cfg.phaseOffset) % 1 + 1) % 1;
+    let currX: number;
+    let currY: number;
+    let stretchY = 0;
+    let opacity = 1;
+    let currentRadius = cfg.radius;
+
+    if (t < 0.18) {
+      // 1. Forming phase: bead forms at top of forehead/temple
+      const formT = t / 0.18;
+      currX = cfg.xStart;
+      currY = cfg.yStart;
+      currentRadius = cfg.radius * (0.35 + 0.65 * formT);
+      stretchY = 0.05;
+      opacity = formT;
+    } else if (t < 0.74) {
+      // 2. Trickling / flowing down phase (accelerating downward along head contour)
+      const flowT = (t - 0.18) / 0.56;
+      const ease = flowT * flowT; // gravity acceleration
+      currX = cfg.xStart + (cfg.xEnd - cfg.xStart) * ease;
+      currY = cfg.yStart + (cfg.yEnd - cfg.yStart) * ease;
+      stretchY = Math.sin(flowT * Math.PI) * 0.75; // stretches into teardrop as it flows
+      opacity = 1;
+    } else {
+      // 3. Detaching & dripping off phase: drops rapidly below cheek/chin and fades out
+      const dropT = (t - 0.74) / 0.26;
+      currX = cfg.xEnd + (cfg.xEnd > 0 ? 3 : -3) * dropT;
+      currY = cfg.yEnd + 16 * dropT * dropT;
+      stretchY = 0.4 * (1 - dropT);
+      opacity = Math.max(0, 1 - dropT * 1.3);
+    }
+
+    if (opacity <= 0.02) continue;
+
+    // Draw the dripping teardrop
+    context.save();
+    context.globalAlpha = opacity;
+
+    const topY = currY - currentRadius * (1.1 + stretchY * 1.25);
+    const bulbY = currY + currentRadius * 0.25;
+    const r = currentRadius;
+
     context.beginPath();
-    context.arc(sweatX, sweatY, 2.5, 0, Math.PI * 2);
-    context.fill();
-    context.beginPath();
-    context.moveTo(sweatX - 1.8, sweatY - 0.5);
-    context.lineTo(sweatX + 1.8, sweatY - 0.5);
-    context.lineTo(sweatX, sweatY - 4.5);
+    context.moveTo(currX, topY);
+    context.bezierCurveTo(currX + r * 0.45, currY - r * 0.35, currX + r * 1.05, bulbY - r * 0.25, currX + r, bulbY);
+    context.arc(currX, bulbY, r, 0, Math.PI, false);
+    context.bezierCurveTo(currX - r, bulbY, currX - r * 1.05, bulbY - r * 0.25, currX - r * 0.45, currY - r * 0.35);
     context.closePath();
+
+    // Vibrant sky blue water body
+    context.fillStyle = '#38bdf8';
     context.fill();
+
+    // Subtle crisp water rim
+    context.strokeStyle = 'rgba(2, 132, 199, 0.7)';
+    context.lineWidth = 0.75;
+    context.stroke();
+
+    // Glossy white specular highlight (reflection)
+    context.fillStyle = '#ffffff';
+    context.beginPath();
+    context.ellipse(currX - r * 0.32, bulbY - r * 0.15, r * 0.3, r * 0.42, -0.25, 0, Math.PI * 2);
+    context.fill();
+
+    // Secondary tiny sparkle dot
+    context.beginPath();
+    context.arc(currX + r * 0.28, bulbY + r * 0.35, r * 0.16, 0, Math.PI * 2);
+    context.fill();
+
+    // Micro splash bead separating when dripping off
+    if (t > 0.74 && t < 0.95) {
+      const splashT = (t - 0.74) / 0.21;
+      const spX = currX + (cfg.xEnd > 0 ? 3.5 : -3.5) * splashT;
+      const spY = currY + 4 + 9 * splashT;
+      context.fillStyle = '#bae6fd';
+      context.beginPath();
+      context.arc(spX, spY, r * 0.3 * (1 - splashT * 0.5), 0, Math.PI * 2);
+      context.fill();
+    }
+
+    context.restore();
   }
   context.restore();
 }

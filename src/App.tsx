@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   Pause,
   Play,
+  Repeat,
   RotateCcw,
   Share2,
   Shuffle,
@@ -83,6 +84,11 @@ function loadSaved(): { icon: string; name: string } {
   }
   return { icon: INITIAL, name: "Sunny" };
 }
+function getStateDuration(stateId: PetState): number {
+  const def = PET_STATES.find((s) => s.id === stateId);
+  return def ? def.durations.reduce((sum, d) => sum + d, 0) : 1000;
+}
+
 const keepOpen = () => {};
 
 export default function App() {
@@ -90,6 +96,7 @@ export default function App() {
   const [icon, setIcon] = useState(saved.icon);
   const [name, setName] = useState(saved.name);
   const [state, setState] = useState<PetState>("idle");
+  const [autoLoop, setAutoLoop] = useState(false);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
   const [paused, setPaused] = useState(false);
   const [exporting, setExporting] = useState<"png" | "gif" | null>(null);
@@ -100,6 +107,22 @@ export default function App() {
   const canvas3DRef = useRef<PetCanvas3DHandle>(null);
   const currentPovRef = useRef<CameraPOV>(DEFAULT_POV);
   const avatar = getProjectIcon(icon);
+
+  // Auto loop through all animations infinitely when enabled
+  useEffect(() => {
+    if (!autoLoop || paused) return;
+
+    const duration = getStateDuration(state);
+    const timer = setTimeout(() => {
+      setState((prevState) => {
+        const currentIndex = PET_STATES.findIndex((s) => s.id === prevState);
+        const nextIndex = (currentIndex + 1) % PET_STATES.length;
+        return PET_STATES[nextIndex].id;
+      });
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [autoLoop, paused, state]);
 
   // Sync current avatar shape, eyes, and color to the URL hash and localStorage
   useEffect(() => {
@@ -364,6 +387,21 @@ export default function App() {
             <div className="motion-picker">
               <label htmlFor="pet-motion">Try a little move</label>
               <div className="motion-actions">
+                <button
+                  type="button"
+                  className={`auto-loop-toggle ${autoLoop ? "active" : ""}`}
+                  onClick={() => setAutoLoop(!autoLoop)}
+                  aria-pressed={autoLoop}
+                  title={
+                    autoLoop
+                      ? "Auto loop: ON (plays selected move, then auto selects next, loops infinitely)"
+                      : "Auto loop: OFF (click to auto cycle through all animations)"
+                  }
+                  aria-label="Auto loop through all animations"
+                >
+                  <Repeat aria-hidden="true" size={13} />
+                  <span>Auto</span>
+                </button>
                 <div className="select-wrap">
                   <select
                     id="pet-motion"

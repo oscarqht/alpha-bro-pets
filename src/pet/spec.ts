@@ -31,6 +31,14 @@ export interface FramePose {
   typeLy: number | null;
   typeRx: number | null;
   typeRy: number | null;
+  sweatSin: number | null;
+  sweatCos: number | null;
+}
+
+export function getSweatProgress(pose: FramePose): number | null {
+  if (pose.sweatSin === null || pose.sweatCos === null) return null;
+  const angle = Math.atan2(pose.sweatSin, pose.sweatCos);
+  return ((angle / (Math.PI * 2)) % 1 + 1) % 1;
 }
 
 /** Pure pose specification shared by the live player and the exported atlas. */
@@ -53,6 +61,8 @@ export function getFramePose(state: PetState, frame: number): FramePose {
     typeLy: null,
     typeRx: null,
     typeRy: null,
+    sweatSin: null,
+    sweatCos: null,
   };
   switch (state) {
     case 'idle':
@@ -111,6 +121,8 @@ export function getFramePose(state: PetState, frame: number): FramePose {
       pose.typeLy = typeLys[index];
       pose.typeRx = typeRxs[index];
       pose.typeRy = typeRys[index];
+      pose.sweatSin = Math.sin(phase);
+      pose.sweatCos = Math.cos(phase);
       break;
     }
     case 'review':
