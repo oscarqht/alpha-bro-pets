@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import * as THREE from 'three';
 import { getProjectIcon } from '../src/utils/projectIcons';
 import { buildPet3D } from '../src/pet/3d/pet3dBuilder';
 import { DEFAULT_POV, type CameraPOV } from '../src/pet/3d/pet3dExport';
@@ -68,14 +69,38 @@ test('buildPet3D with furry: true covers model in fur shells and responds to vie
   assert.ok(furryPet.addFurImpulse, 'addFurImpulse function should be present');
   assert.ok(furryPet.setFurDisplacement, 'setFurDisplacement function should be present');
 
-  // Verify that an InstancedMesh (the fur shells) exists in petRoot
-  let foundInstancedMesh = false;
+  // Both passes must accept our nonindexed extruded geometry and sample its surface.
+  const passes: THREE.Mesh[] = [];
   furryPet.petRoot.traverse((obj) => {
-    if ((obj as any).isInstancedMesh) {
-      foundInstancedMesh = true;
-    }
+    if (obj instanceof THREE.Mesh && obj.geometry instanceof THREE.InstancedBufferGeometry) passes.push(obj);
   });
-  assert.ok(foundInstancedMesh, 'Furry pet must contain an InstancedMesh representing the fur shells');
+  assert.equal(passes.length, 2, 'Fur needs a volumetric undercoat and individual hairs');
+  const strands = passes.find((mesh) => mesh.geometry.hasAttribute('aRootPos'))!;
+  assert.ok(strands);
+  const geometry = strands.geometry as THREE.InstancedBufferGeometry;
+  assert.ok(geometry.instanceCount >= 20000, 'Analytical fallback must retain a dense coat');
+  const roots = geometry.getAttribute('aRootPos');
+  const normals = geometry.getAttribute('aRootNormal');
+  const mask = geometry.getAttribute('aMaskValue');
+  let frontCount = 0, backCount = 0;
+  for (let i = 0; i < geometry.instanceCount; i++) {
+    assert.ok(Number.isFinite(roots.getX(i)) && Number.isFinite(roots.getY(i)) && Number.isFinite(roots.getZ(i)));
+    assert.ok(Math.abs(Math.hypot(normals.getX(i), normals.getY(i), normals.getZ(i)) - 1) < 1e-5);
+    if (roots.getZ(i) > 0.29) {
+      frontCount++;
+      if (Math.hypot(roots.getX(i) / 0.46, (roots.getY(i) + avatar.fy) / 0.46) < 0.75) {
+        assert.ok(mask.getX(i) < 0.3, 'Face hairs must stay short around eyes and mouth');
+      }
+    }
+    if (roots.getZ(i) < -0.29) backCount++;
+  }
+  assert.ok(frontCount > 1000 && backCount > 1000, 'Follicles must cover both body caps');
+  const material = strands.material as THREE.ShaderMaterial;
+  assert.equal(material.uniforms.uGpuFurMode.value, 0, 'Node/export must use analytical physics without a renderer');
+  furryPet.setFurPointer?.(new THREE.Vector3(0, 0, 0.3));
+  assert.equal(material.uniforms.uPointerActive.value, 1);
+  furryPet.setFurPointer?.(null);
+  assert.equal(material.uniforms.uPointerActive.value, 0);
 
   // Verify camera rotation physics update
   const fakeCamera = {

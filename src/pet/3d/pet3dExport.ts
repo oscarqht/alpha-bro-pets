@@ -19,7 +19,9 @@ export const DEFAULT_POV: CameraPOV = {
   zoom: 1,
 };
 
-function setupExportScene(icon: string, pov: CameraPOV, furry: boolean = false) {
+interface FurSettings { furLength: number; messiness: number }
+
+function setupExportScene(icon: string, pov: CameraPOV, furry: boolean = false, furSettings?: FurSettings) {
   const avatar = getProjectIcon(icon);
   const scene = new THREE.Scene();
 
@@ -51,6 +53,10 @@ function setupExportScene(icon: string, pov: CameraPOV, furry: boolean = false) 
   // Only the 3D pet character is added.
   const pet = buildPet3D(avatar, { furry });
   scene.add(pet.root);
+  if (furSettings) {
+    pet.setFurLength?.(furSettings.furLength);
+    pet.setMessiness?.(furSettings.messiness);
+  }
 
   // Setup camera at the exact user POV with cell aspect ratio
   const camera = new THREE.PerspectiveCamera(pov.fov, CELL_WIDTH / CELL_HEIGHT, 0.1, 50);
@@ -72,7 +78,8 @@ export async function createPetSheet3D(
   pov: CameraPOV,
   version: PetVersion = 'v1',
   onProgress?: (percent: number) => void,
-  furry: boolean = false
+  furry: boolean = false,
+  furSettings?: FurSettings,
 ): Promise<Blob> {
   const rows = version === 'v2' ? 11 : 9;
   const cols = 8;
@@ -91,13 +98,14 @@ export async function createPetSheet3D(
     preserveDrawingBuffer: true,
     powerPreference: 'high-performance',
   });
+  if (furry) renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_WIDTH, CELL_HEIGHT, false);
   renderer.setPixelRatio(1);
   renderer.setClearColor(0x000000, 0); // Transparent background
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  const { scene, camera, pet } = setupExportScene(icon, pov, furry);
+  const { scene, camera, pet } = setupExportScene(icon, pov, furry, furSettings);
 
   try {
     let totalFrames = 0;
@@ -112,6 +120,7 @@ export async function createPetSheet3D(
       for (let frame = 0; frame < stateDef.frames; frame++) {
         const pose = getFramePose(stateDef.id, frame);
         pet.applyPose(pose);
+        pet.setFurTime?.(frame / 12);
 
         renderer.clear();
         renderer.render(scene, camera);
@@ -133,6 +142,7 @@ export async function createPetSheet3D(
         pose.faceX = Math.sin(angle) * 12;
         pose.faceY = -Math.cos(angle) * 10;
         pet.applyPose(pose);
+        pet.setFurTime?.(0);
 
         renderer.clear();
         renderer.render(scene, camera);
@@ -176,7 +186,8 @@ export async function createPetGif3D(
   state: PetState,
   pov: CameraPOV,
   onProgress?: (percent: number) => void,
-  furry: boolean = false
+  furry: boolean = false,
+  furSettings?: FurSettings,
 ): Promise<Blob> {
   const { createGifEncoder, gifTimeline } = await import('../gif');
 
@@ -186,6 +197,7 @@ export async function createPetGif3D(
     preserveDrawingBuffer: true,
     powerPreference: 'high-performance',
   });
+  if (furry) renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_WIDTH, CELL_HEIGHT, false);
   renderer.setPixelRatio(1);
   renderer.setClearColor(0x000000, 0); // Transparent background
@@ -198,7 +210,7 @@ export async function createPetGif3D(
   const helperCtx = helperCanvas.getContext('2d', { willReadFrequently: true });
   if (!helperCtx) throw new Error('Your browser does not support canvas export.');
 
-  const { scene, camera, pet } = setupExportScene(icon, pov, furry);
+  const { scene, camera, pet } = setupExportScene(icon, pov, furry, furSettings);
   const encoder = createGifEncoder(CELL_WIDTH, CELL_HEIGHT);
   const timeline = gifTimeline(state);
 

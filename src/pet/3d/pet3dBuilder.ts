@@ -8,7 +8,8 @@ export interface Pet3DInstance {
   root: THREE.Group;
   petRoot: THREE.Group;
   applyPose: (pose: FramePose, boopOffset?: { y: number; scale: number }) => void;
-  updateFurPhysics?: (delta: number, camera: THREE.Camera, boopOffset?: number) => void;
+  updateFurPhysics?: (delta: number, camera: THREE.Camera, boopOffset?: number, renderer?: THREE.WebGLRenderer) => void;
+  setFurPointer?: (position: THREE.Vector3 | null) => void;
   setFurTime?: (time: number) => void;
   setFurDisplacement?: (x: number, y: number, z: number) => void;
   setFurLength?: (length: number) => void;
@@ -240,11 +241,11 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
 
   const bodyMaterial = new THREE.MeshPhysicalMaterial({
     color: avatar.color,
-    roughness: isFurry ? 0.38 : 0.26,
-    metalness: 0.04,
-    clearcoat: isFurry ? 0.1 : 0.35,
+    roughness: isFurry ? 0.90 : 0.26,
+    metalness: isFurry ? 0 : 0.04,
+    clearcoat: isFurry ? 0 : 0.35,
     clearcoatRoughness: 0.2,
-    reflectivity: 0.4,
+    reflectivity: isFurry ? 0.15 : 0.4,
   });
   disposables.materials.push(bodyMaterial);
 
@@ -256,7 +257,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
   // 1b. Fur Shell System (When in Furry Mode)
   let furSystem: FurShellSystem | null = null;
   if (isFurry) {
-    furSystem = createFurShellSystem(bodyGeometry, avatar.color);
+    furSystem = createFurShellSystem(bodyGeometry, avatar.color, { faceY: -avatar.fy });
     petRoot.add(furSystem.mesh);
   }
 
@@ -279,7 +280,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
 
   // 3. Facial Expression
   // In furry mode, face is brought forward so eyes sit nestled comfortably in the long fluffy fleece
-  const frontZ = isFurry ? 0.49 : 0.305;
+  const frontZ = isFurry ? 0.54 : 0.305;
   const faceGroup = new THREE.Group();
   faceGroup.position.set(0, -avatar.fy, frontZ);
   if (isFurry) {
@@ -880,6 +881,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     petRoot,
     applyPose,
     updateFurPhysics: furSystem ? furSystem.updatePhysics : undefined,
+    setFurPointer: furSystem ? furSystem.setPointer : undefined,
     setFurTime: furSystem ? furSystem.setTime : undefined,
     setFurDisplacement: furSystem ? furSystem.setDisplacement : undefined,
     setFurLength: furSystem ? furSystem.setFurLength : undefined,

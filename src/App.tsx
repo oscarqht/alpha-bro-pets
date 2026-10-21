@@ -174,12 +174,13 @@ export default function App() {
       const is3D = viewMode === "3d" || viewMode === "furry";
       const isFurry = viewMode === "furry";
       const pov = canvas3DRef.current?.getPOV() ?? currentPovRef.current;
+      const furSettings = canvas3DRef.current?.getFurSettings();
       const blob = format === "gif"
         ? (is3D
-            ? await createPetGif3D(icon, state, pov, setGifProgress, isFurry)
+            ? await createPetGif3D(icon, state, pov, setGifProgress, isFurry, furSettings)
             : await createPetGif(icon, state, setGifProgress))
         : (is3D
-            ? await createPetSheet3D(icon, pov, "v1", setGifProgress, isFurry)
+            ? await createPetSheet3D(icon, pov, "v1", setGifProgress, isFurry, furSettings)
             : await createPetSheet(icon));
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
