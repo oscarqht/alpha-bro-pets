@@ -11,6 +11,7 @@ import { DEFAULT_POV } from './pet3dExport';
 
 export interface PetCanvas3DHandle {
   getPOV: () => CameraPOV;
+  getFurSettings: () => { furLength: number; messiness: number };
   resetCamera: () => void;
   setPreset: (preset: 'front' | 'isometric' | 'side') => void;
   fluff?: () => void;
@@ -80,6 +81,7 @@ export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
 
     useImperativeHandle(ref, () => ({
       getPOV: extractCurrentPOV,
+      getFurSettings: () => ({ furLength, messiness }),
       resetCamera,
       setPreset,
       fluff: () => setFluffTrigger(Date.now()),

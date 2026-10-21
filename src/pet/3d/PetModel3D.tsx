@@ -92,7 +92,7 @@ export const PetModel3D: React.FC<PetModel3DProps> = ({
 
     // Update dynamic reactive fur physics relative to camera rotation and view movement
     if (furry && pet3d.updateFurPhysics) {
-      pet3d.updateFurPhysics(delta, stateCtx.camera, boopY);
+      pet3d.updateFurPhysics(delta, stateCtx.camera, boopY, stateCtx.gl);
     }
   });
 
@@ -102,8 +102,9 @@ export const PetModel3D: React.FC<PetModel3DProps> = ({
         e.stopPropagation();
         setHovered(true);
       }}
-      onPointerOut={() => setHovered(false)}
+      onPointerOut={() => { setHovered(false); pet3d.setFurPointer?.(null); }}
       onPointerMove={(e) => {
+        if (furry) pet3d.setFurPointer?.(pet3d.petRoot.worldToLocal(e.point.clone()));
         // Petting reaction: dragging cursor across the fur gently combs/swishes it
         if (furry && pet3d.addFurImpulse && (e.buttons > 0 || Math.abs(e.movementX) > 2)) {
           pet3d.addFurImpulse(
