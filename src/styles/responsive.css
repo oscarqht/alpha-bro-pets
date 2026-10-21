@@ -7,7 +7,7 @@
     min-height: 390px;
   }
   .pet-stage {
-    height: 277px;
+    min-height: 420px;
   }
 }
 @media (max-width: 900px) {
@@ -42,9 +42,6 @@
   }
   .motion-picker {
     padding: 15px 16px;
-  }
-  .name-field {
-    padding: 18px 16px 21px;
   }
 }
 @media (max-width: 700px) {
@@ -117,14 +114,12 @@
     font-size: 10px;
   }
   .pet-stage {
-    height: 260px;
+    min-height: 330px;
+    height: 330px;
     margin: 0 20px;
   }
   .motion-picker {
     padding: 15px 20px;
-  }
-  .name-field {
-    padding: 18px 20px 22px;
   }
   .export-panel {
     flex-direction: column;

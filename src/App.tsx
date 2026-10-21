@@ -27,7 +27,20 @@ import {
   buildPetHash,
   getPetIconFromHash,
 } from "./utils/petHash";
-import { createPetSheet, createPetGif, PetPreview, PET_STATES, type PetState } from "./pet";
+import {
+  createPetSheet,
+  createPetGif,
+  createPetSheet3D,
+  createPetGif3D,
+  DEFAULT_POV,
+  PetPreview,
+  PetCanvas3D,
+  PET_STATES,
+  type PetState,
+  type CameraPOV,
+  type PetCanvas3DHandle,
+} from "./pet";
+import { useRef } from "react";
 
 const INITIAL = formatProjectIconId({
   shapeId: "cloud",
@@ -77,12 +90,15 @@ export default function App() {
   const [icon, setIcon] = useState(saved.icon);
   const [name, setName] = useState(saved.name);
   const [state, setState] = useState<PetState>("idle");
+  const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
   const [paused, setPaused] = useState(false);
   const [exporting, setExporting] = useState<"png" | "gif" | null>(null);
   const [gifProgress, setGifProgress] = useState(0);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [showHelp, setShowHelp] = useState(false);
+  const canvas3DRef = useRef<PetCanvas3DHandle>(null);
+  const currentPovRef = useRef<CameraPOV>(DEFAULT_POV);
   const avatar = getProjectIcon(icon);
 
   // Sync current avatar shape, eyes, and color to the URL hash and localStorage
@@ -132,28 +148,43 @@ export default function App() {
     setError("");
     setNotice("");
     try {
+      const is3D = viewMode === "3d";
+      const pov = canvas3DRef.current?.getPOV() ?? currentPovRef.current;
       const blob = format === "gif"
-        ? await createPetGif(icon, state, setGifProgress)
-        : await createPetSheet(icon);
+        ? (is3D
+            ? await createPetGif3D(icon, state, pov, setGifProgress)
+            : await createPetGif(icon, state, setGifProgress))
+        : (is3D
+            ? await createPetSheet3D(icon, pov, "v1", setGifProgress)
+            : await createPetSheet(icon));
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
+      const baseName =
+        name && name.trim().toLowerCase() !== "sunny" && name.trim()
+          ? name.trim()
+          : (avatar.shapeLabel ? `${avatar.shapeLabel.toLowerCase()}-pet` : "sunny");
       const filename =
-        name
-          .trim()
+        baseName
           .replace(/[^a-z0-9_-]+/gi, "-")
           .replace(/^-+|-+$/g, "")
           .slice(0, 50) || "my-pet";
       link.download = format === "gif"
-        ? `${filename.toLowerCase()}-${state}.gif`
-        : `${filename.toLowerCase()}-chatgpt-pet.png`;
+        ? `${filename.toLowerCase()}-${state}${is3D ? "-3d" : ""}.gif`
+        : `${filename.toLowerCase()}-chatgpt-pet${is3D ? "-3d" : ""}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      setNotice(format === "gif"
-        ? "GIF exported! A smooth, transparent loop of your selected move."
-        : "Pet exported! Your PNG is ready to upload to ChatGPT.");
+      setNotice(
+        format === "gif"
+          ? (is3D
+              ? "3D GIF exported! A smooth, transparent loop captured from your current angle."
+              : "GIF exported! A smooth, transparent loop of your selected move.")
+          : (is3D
+              ? "3D Pet exported! All 9 animations captured from your current angle. Ready for ChatGPT."
+              : "Pet exported! Your PNG is ready to upload to ChatGPT.")
+      );
       if (format === "png") setShowHelp(true);
     } catch (cause) {
       setError(
@@ -270,25 +301,58 @@ export default function App() {
                 <span className="step-number">02</span>
                 <h2 id="preview-title">Bring it to life</h2>
               </div>
-              <span className="live-label">
-                <span />
-                LIVE PREVIEW
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div className="mode-toggle" role="group" aria-label="Preview dimension mode">
+                  <button
+                    type="button"
+                    className={`mode-toggle-btn ${viewMode === "2d" ? "active" : ""}`}
+                    onClick={() => setViewMode("2d")}
+                    aria-pressed={viewMode === "2d"}
+                  >
+                    2D
+                  </button>
+                  <button
+                    type="button"
+                    className={`mode-toggle-btn ${viewMode === "3d" ? "active" : ""}`}
+                    onClick={() => setViewMode("3d")}
+                    aria-pressed={viewMode === "3d"}
+                  >
+                    3D
+                  </button>
+                </div>
+                <span className="live-label">
+                  <span />
+                  LIVE PREVIEW
+                </span>
+              </div>
             </div>
             <div className="pet-stage">
-              <div className="stage-orbit orbit-one" />
-              <div className="stage-orbit orbit-two" />
-              <span className="stage-spark spark-one">✳</span>
-              <span className="stage-spark spark-two">+</span>
-              <PetPreview
-                icon={icon}
-                state={state}
-                paused={paused}
-                className="pet-canvas"
-              />
-              <div className="pet-nameplate">
-                {name.trim() || "Your little friend"}
-              </div>
+              {viewMode === "2d" ? (
+                <>
+                  <div className="stage-orbit orbit-one" />
+                  <div className="stage-orbit orbit-two" />
+                  <span className="stage-spark spark-one">✳</span>
+                  <span className="stage-spark spark-two">+</span>
+                  <PetPreview
+                    icon={icon}
+                    state={state}
+                    paused={paused}
+                    className="pet-canvas"
+                  />
+                </>
+              ) : (
+                <div className="pet-canvas-3d-wrapper">
+                  <PetCanvas3D
+                    ref={canvas3DRef}
+                    icon={icon}
+                    state={state}
+                    paused={paused}
+                    onPovChange={(pov) => {
+                      currentPovRef.current = pov;
+                    }}
+                  />
+                </div>
+              )}
               <button
                 className="playback-button"
                 onClick={() => setPaused(!paused)}
@@ -318,28 +382,23 @@ export default function App() {
                   className="gif-button"
                   disabled={!!exporting}
                   onClick={() => exportPet("gif")}
-                  aria-label={exporting === "gif" ? `Creating GIF, ${gifProgress}%` : "Export selected move as GIF"}
-                  title={exporting === "gif" ? `Creating GIF… ${gifProgress}%` : "Export selected move · Transparent · 50 fps · Loops forever"}
+                  aria-label={
+                    exporting === "gif"
+                      ? `Creating ${viewMode === "3d" ? "3D " : ""}GIF, ${gifProgress}%`
+                      : `Export selected move as ${viewMode === "3d" ? "3D " : ""}GIF`
+                  }
+                  title={
+                    exporting === "gif"
+                      ? `Creating ${viewMode === "3d" ? "3D " : ""}GIF… ${gifProgress}%`
+                      : (viewMode === "3d"
+                          ? "Export selected move in 3D (current POV) · Transparent · Loops forever"
+                          : "Export selected move · Transparent · 50 fps · Loops forever")
+                  }
                 >
                   {exporting === "gif" && <LoaderCircle aria-hidden="true" className="spin" size={12} />}
-                  GIF
+                  GIF{viewMode === "3d" ? " 3D" : ""}
                 </button>
               </div>
-            </div>
-            <div className="name-field">
-              <label htmlFor="pet-name">What should we call them?</label>
-              <input
-                id="pet-name"
-                maxLength={40}
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setNotice("");
-                }}
-                placeholder="Your pet’s name"
-                autoComplete="off"
-              />
-              <span>A name for your download. Personality comes included.</span>
             </div>
           </section>
         </div>
@@ -349,8 +408,14 @@ export default function App() {
               <Sparkles aria-hidden="true" size={22} />
             </div>
             <div>
-              <h2 id="export-title">Ready for a new home?</h2>
-              <p>All 9 animations. One transparent PNG. Made for ChatGPT.</p>
+              <h2 id="export-title">
+                {viewMode === "3d" ? "Ready for a 3D home?" : "Ready for a new home?"}
+              </h2>
+              <p>
+                {viewMode === "3d"
+                  ? "All 9 animations captured in 3D from your current angle. One transparent PNG."
+                  : "All 9 animations. One transparent PNG. Made for ChatGPT."}
+              </p>
             </div>
           </div>
           <button
@@ -363,7 +428,11 @@ export default function App() {
             ) : (
               <ArrowDownToLine aria-hidden="true" size={18} />
             )}
-            {exporting === "png" ? "Creating your pet…" : "Export ChatGPT pet"}
+            {exporting === "png"
+              ? (viewMode === "3d" && gifProgress > 0
+                  ? `Creating 3D pet… ${gifProgress}%`
+                  : "Creating your pet…")
+              : (viewMode === "3d" ? "Export ChatGPT pet (3D)" : "Export ChatGPT pet")}
           </button>
         </section>
         <div className="feedback" role="status" aria-live="polite">

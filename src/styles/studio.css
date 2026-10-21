@@ -3,13 +3,21 @@
   grid-template-columns: 1.15fr 1fr;
   gap: 20px;
 }
-.builder-panel,
+.builder-panel {
+  border: 1px solid #e4e4db;
+  border-radius: 22px;
+  background: #fffefa;
+  min-width: 0;
+  overflow: hidden;
+}
 .preview-panel {
   border: 1px solid #e4e4db;
   border-radius: 22px;
   background: #fffefa;
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .panel-heading {
   display: flex;
@@ -124,14 +132,53 @@ h2 {
   background: #779566;
   border-radius: 50%;
 }
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: #ebeee3;
+  border: 1px solid #d8ddcf;
+  border-radius: 20px;
+  padding: 2px;
+  gap: 2px;
+}
+.mode-toggle-btn {
+  border: 0;
+  background: transparent;
+  color: #6a715f;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.mode-toggle-btn:hover {
+  color: #263c23;
+}
+.mode-toggle-btn.active {
+  background: #ffffff;
+  color: #273b22;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.pet-canvas-3d-wrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
 .pet-stage {
-  height: 261px;
+  flex: 1;
+  min-height: 400px;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #f0f2e9;
-  margin: 0 22px;
+  margin: 0 22px 16px;
   border: 1px solid #e8ebdf;
   border-radius: 14px;
   overflow: hidden;
@@ -140,12 +187,12 @@ h2 {
   position: absolute;
   border: 1px solid #dfe5d5;
   border-radius: 50%;
-  width: 206px;
-  height: 206px;
+  width: 250px;
+  height: 250px;
 }
 .orbit-two {
-  width: 285px;
-  height: 285px;
+  width: 340px;
+  height: 340px;
   border-style: dashed;
   opacity: 0.7;
 }
@@ -166,28 +213,13 @@ h2 {
   color: #acb69b;
 }
 .pet-canvas {
-  width: 192px;
-  height: 208px;
+  width: 210px;
+  height: 228px;
   position: relative;
   z-index: 1;
   max-width: 100%;
   object-fit: contain;
-  margin-top: -20px;
-}
-.pet-nameplate {
-  position: absolute;
-  bottom: 24px;
-  font-size: 11px;
-  font-weight: 550;
-  color: #5c6951;
-  background: #fffdf6b8;
-  border: 1px solid #e0e5d6;
-  border-radius: 20px;
-  padding: 5px 13px;
-  max-width: 70%;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  margin-top: -10px;
 }
 .playback-button {
   position: absolute;
@@ -207,8 +239,9 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 24px;
-  border-bottom: 1px solid #eeeee6;
+  padding: 14px 24px;
+  border-top: 1px solid #eeeee6;
+  background: #fffefa;
   font-size: 11px;
   color: #707665;
 }
@@ -230,28 +263,4 @@ h2 {
   right: 6px;
   top: 7px;
   pointer-events: none;
-}
-.name-field {
-  padding: 18px 24px 21px;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-.name-field label {
-  font-size: 11px;
-  font-weight: 550;
-}
-.name-field input {
-  font-size: 13px;
-  color: #343b2e;
-  background: #fffefa;
-  border: 1px solid #e0e2d7;
-  padding: 10px 12px;
-  border-radius: 8px;
-  min-width: 0;
-  width: 100%;
-}
-.name-field > span {
-  font-size: 9px;
-  color: #6b735e;
 }
