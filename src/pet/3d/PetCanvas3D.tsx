@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { Rotate3d, Compass } from 'lucide-react';
+import { Rotate3d, Compass, Sparkles } from 'lucide-react';
 import type { PetState } from '../spec';
 import { PetModel3D } from './PetModel3D';
 import type { CameraPOV } from './pet3dExport';
@@ -13,20 +13,27 @@ export interface PetCanvas3DHandle {
   getPOV: () => CameraPOV;
   resetCamera: () => void;
   setPreset: (preset: 'front' | 'isometric' | 'side') => void;
+  fluff?: () => void;
 }
 
 export interface PetCanvas3DProps {
   icon: string;
   state: PetState;
   paused?: boolean;
+  furry?: boolean;
   className?: string;
   onPovChange?: (pov: CameraPOV) => void;
 }
 
 export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
-  ({ icon, state, paused = false, className = '', onPovChange }, ref) => {
+  ({ icon, state, paused = false, furry = false, className = '', onPovChange }, ref) => {
     const controlsRef = useRef<OrbitControlsImpl>(null);
     const [autoRotate, setAutoRotate] = useState(false);
+    const [fluffTrigger, setFluffTrigger] = useState(0);
+    const [furStyle, setFurStyle] = useState<'shaggy' | 'wild' | 'plush'>('shaggy');
+
+    const furLength = furStyle === 'wild' ? 0.32 : furStyle === 'shaggy' ? 0.26 : 0.18;
+    const messiness = furStyle === 'wild' ? 0.20 : furStyle === 'shaggy' ? 0.14 : 0.08;
 
     function extractCurrentPOV(): CameraPOV {
       if (controlsRef.current) {
@@ -75,6 +82,7 @@ export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
       getPOV: extractCurrentPOV,
       resetCamera,
       setPreset,
+      fluff: () => setFluffTrigger(Date.now()),
     }));
 
     return (
@@ -148,7 +156,15 @@ export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
           {/* Animated 3D Pet Model */}
           <React.Suspense fallback={null}>
             <group position={[0, 0, 0]}>
-              <PetModel3D icon={icon} state={state} paused={paused} />
+              <PetModel3D
+                icon={icon}
+                state={state}
+                paused={paused}
+                furry={furry}
+                furLength={furLength}
+                messiness={messiness}
+                fluffTrigger={fluffTrigger}
+              />
             </group>
           </React.Suspense>
 
@@ -174,6 +190,34 @@ export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
 
         {/* Sleek Stage 3D Control Badges */}
         <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10 pointer-events-auto">
+          {furry && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setFurStyle((prev) => (prev === 'shaggy' ? 'wild' : prev === 'wild' ? 'plush' : 'shaggy'));
+                  setFluffTrigger(Date.now());
+                }}
+                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-md border bg-[#fffdf5] text-[#92400e] border-[#fcd34d] hover:bg-[#fef3c7] shadow-2xs transition-all active:scale-95"
+                title={`Click to switch fur style (Current: ${furStyle === 'shaggy' ? 'Shaggy Fleece' : furStyle === 'wild' ? 'Extra Wild' : 'Plush'})`}
+                aria-label="Switch fur style"
+              >
+                <span>{furStyle === 'shaggy' ? '🧶 Shaggy' : furStyle === 'wild' ? '🦁 Wild' : '🧸 Plush'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFluffTrigger(Date.now())}
+                className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-md border bg-[#fffdf5] text-[#92400e] border-[#fcd34d] hover:bg-[#fef3c7] shadow-2xs transition-all active:scale-95"
+                title="Shake and fluff the messy fur"
+                aria-label="Fluff the soft fur"
+              >
+                <Sparkles size={11} className="text-amber-500 animate-spin" style={{ animationDuration: '4s' }} />
+                <span>Fluff</span>
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             onClick={() => setAutoRotate(!autoRotate)}
@@ -221,9 +265,9 @@ export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
           </button>
         </div>
 
-        {/* Discreet 3D interaction hint in top-right */}
-        <div className="absolute top-3 right-3 text-[10px] text-[#637257] bg-[#ffffffbf] px-2.5 py-1 rounded-md border border-[#dce2d3] pointer-events-none tracking-wide">
-          Drag to rotate · Click to boop
+        {/* Sleek interaction hint pill at bottom center (never overlaps top controls) */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[10px] text-[#637257] bg-[#ffffffea] px-3 py-1 rounded-full border border-[#dce2d3] pointer-events-none tracking-wide shadow-2xs whitespace-nowrap z-10">
+          {furry ? 'Rotate view to feel plush fur physics · Drag to pet' : 'Drag to rotate · Click to boop'}
         </div>
       </div>
     );

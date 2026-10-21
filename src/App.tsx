@@ -97,7 +97,7 @@ export default function App() {
   const [name, setName] = useState(saved.name);
   const [state, setState] = useState<PetState>("idle");
   const [autoLoop, setAutoLoop] = useState(false);
-  const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
+  const [viewMode, setViewMode] = useState<"2d" | "3d" | "furry">("3d");
   const [paused, setPaused] = useState(false);
   const [exporting, setExporting] = useState<"png" | "gif" | null>(null);
   const [gifProgress, setGifProgress] = useState(0);
@@ -171,14 +171,15 @@ export default function App() {
     setError("");
     setNotice("");
     try {
-      const is3D = viewMode === "3d";
+      const is3D = viewMode === "3d" || viewMode === "furry";
+      const isFurry = viewMode === "furry";
       const pov = canvas3DRef.current?.getPOV() ?? currentPovRef.current;
       const blob = format === "gif"
         ? (is3D
-            ? await createPetGif3D(icon, state, pov, setGifProgress)
+            ? await createPetGif3D(icon, state, pov, setGifProgress, isFurry)
             : await createPetGif(icon, state, setGifProgress))
         : (is3D
-            ? await createPetSheet3D(icon, pov, "v1", setGifProgress)
+            ? await createPetSheet3D(icon, pov, "v1", setGifProgress, isFurry)
             : await createPetSheet(icon));
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -192,19 +193,24 @@ export default function App() {
           .replace(/[^a-z0-9_-]+/gi, "-")
           .replace(/^-+|-+$/g, "")
           .slice(0, 50) || "my-pet";
+      const suffix = isFurry ? "-furry" : is3D ? "-3d" : "";
       link.download = format === "gif"
-        ? `${filename.toLowerCase()}-${state}${is3D ? "-3d" : ""}.gif`
-        : `${filename.toLowerCase()}-chatgpt-pet${is3D ? "-3d" : ""}.png`;
+        ? `${filename.toLowerCase()}-${state}${suffix}.gif`
+        : `${filename.toLowerCase()}-chatgpt-pet${suffix}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
       setNotice(
         format === "gif"
-          ? (is3D
+          ? (isFurry
+              ? "Furry GIF exported! A soft, fluffy loop captured from your current angle."
+              : is3D
               ? "3D GIF exported! A smooth, transparent loop captured from your current angle."
               : "GIF exported! A smooth, transparent loop of your selected move.")
-          : (is3D
+          : (isFurry
+              ? "Furry Pet exported! All 9 animations covered in thick soft fur from your current angle. Ready for ChatGPT."
+              : is3D
               ? "3D Pet exported! All 9 animations captured from your current angle. Ready for ChatGPT."
               : "Pet exported! Your PNG is ready to upload to ChatGPT.")
       );
@@ -342,6 +348,15 @@ export default function App() {
                   >
                     3D
                   </button>
+                  <button
+                    type="button"
+                    className={`mode-toggle-btn ${viewMode === "furry" ? "active" : ""}`}
+                    onClick={() => setViewMode("furry")}
+                    aria-pressed={viewMode === "furry"}
+                  >
+                    <Sparkles size={11} className={viewMode === "furry" ? "text-amber-500" : ""} />
+                    Furry
+                  </button>
                 </div>
                 <span className="live-label">
                   <span />
@@ -370,6 +385,7 @@ export default function App() {
                     icon={icon}
                     state={state}
                     paused={paused}
+                    furry={viewMode === "furry"}
                     onPovChange={(pov) => {
                       currentPovRef.current = pov;
                     }}
@@ -422,19 +438,21 @@ export default function App() {
                   onClick={() => exportPet("gif")}
                   aria-label={
                     exporting === "gif"
-                      ? `Creating ${viewMode === "3d" ? "3D " : ""}GIF, ${gifProgress}%`
-                      : `Export selected move as ${viewMode === "3d" ? "3D " : ""}GIF`
+                      ? `Creating ${viewMode === "furry" ? "Furry " : viewMode === "3d" ? "3D " : ""}GIF, ${gifProgress}%`
+                      : `Export selected move as ${viewMode === "furry" ? "Furry " : viewMode === "3d" ? "3D " : ""}GIF`
                   }
                   title={
                     exporting === "gif"
-                      ? `Creating ${viewMode === "3d" ? "3D " : ""}GIF… ${gifProgress}%`
-                      : (viewMode === "3d"
+                      ? `Creating ${viewMode === "furry" ? "Furry " : viewMode === "3d" ? "3D " : ""}GIF… ${gifProgress}%`
+                      : (viewMode === "furry"
+                          ? "Export selected move with soft fur (current POV) · Transparent · Loops forever"
+                          : viewMode === "3d"
                           ? "Export selected move in 3D (current POV) · Transparent · Loops forever"
                           : "Export selected move · Transparent · 50 fps · Loops forever")
                   }
                 >
                   {exporting === "gif" && <LoaderCircle aria-hidden="true" className="spin" size={12} />}
-                  GIF{viewMode === "3d" ? " 3D" : ""}
+                  GIF{viewMode === "furry" ? " Furry" : viewMode === "3d" ? " 3D" : ""}
                 </button>
               </div>
             </div>
@@ -447,10 +465,16 @@ export default function App() {
             </div>
             <div>
               <h2 id="export-title">
-                {viewMode === "3d" ? "Ready for a 3D home?" : "Ready for a new home?"}
+                {viewMode === "furry"
+                  ? "Ready for a fluffy home?"
+                  : viewMode === "3d"
+                  ? "Ready for a 3D home?"
+                  : "Ready for a new home?"}
               </h2>
               <p>
-                {viewMode === "3d"
+                {viewMode === "furry"
+                  ? "All 9 animations covered in thick soft fur from your current angle. One transparent PNG."
+                  : viewMode === "3d"
                   ? "All 9 animations captured in 3D from your current angle. One transparent PNG."
                   : "All 9 animations. One transparent PNG. Made for ChatGPT."}
               </p>
@@ -467,10 +491,14 @@ export default function App() {
               <ArrowDownToLine aria-hidden="true" size={18} />
             )}
             {exporting === "png"
-              ? (viewMode === "3d" && gifProgress > 0
-                  ? `Creating 3D pet… ${gifProgress}%`
+              ? (viewMode !== "2d" && gifProgress > 0
+                  ? `Creating ${viewMode === "furry" ? "Furry" : "3D"} pet… ${gifProgress}%`
                   : "Creating your pet…")
-              : (viewMode === "3d" ? "Export ChatGPT pet (3D)" : "Export ChatGPT pet")}
+              : (viewMode === "furry"
+                  ? "Export ChatGPT pet (Furry)"
+                  : viewMode === "3d"
+                  ? "Export ChatGPT pet (3D)"
+                  : "Export ChatGPT pet")}
           </button>
         </section>
         <div className="feedback" role="status" aria-live="polite">

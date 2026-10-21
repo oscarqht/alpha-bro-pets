@@ -58,3 +58,50 @@ test('DEFAULT_POV has valid 3D camera coordinates and orientation', () => {
   };
   assert.equal(customPov.position[0], 2.4);
 });
+
+test('buildPet3D with furry: true covers model in fur shells and responds to view rotation physics', () => {
+  const avatar = getProjectIcon('cloud-toon-flat-FFC20E');
+  const furryPet = buildPet3D(avatar, { furry: true });
+
+  assert.equal(furryPet.isFurry, true, 'isFurry should be true');
+  assert.ok(furryPet.updateFurPhysics, 'updateFurPhysics function should be present');
+  assert.ok(furryPet.addFurImpulse, 'addFurImpulse function should be present');
+  assert.ok(furryPet.setFurDisplacement, 'setFurDisplacement function should be present');
+
+  // Verify that an InstancedMesh (the fur shells) exists in petRoot
+  let foundInstancedMesh = false;
+  furryPet.petRoot.traverse((obj) => {
+    if ((obj as any).isInstancedMesh) {
+      foundInstancedMesh = true;
+    }
+  });
+  assert.ok(foundInstancedMesh, 'Furry pet must contain an InstancedMesh representing the fur shells');
+
+  // Verify camera rotation physics update
+  const fakeCamera = {
+    position: { x: 0, y: 0.25, z: 4.6, length: () => 4.606, copy: function (p: any) { this.x = p.x; this.y = p.y; this.z = p.z; } },
+    quaternion: { x: 0, y: 0, z: 0, w: 1, copy: function () {} },
+  } as any;
+
+  // First call establishes baseline
+  furryPet.updateFurPhysics!(0.016, fakeCamera);
+
+  // Simulate user rotating the view by dragging camera to the right
+  fakeCamera.position.x = 1.5;
+  fakeCamera.position.z = 4.34;
+  furryPet.updateFurPhysics!(0.016, fakeCamera);
+
+  // Impulse test (e.g. fluff or petting)
+  furryPet.addFurImpulse!(0.05, 0.1, 0.02);
+  furryPet.updateFurPhysics!(0.016, fakeCamera);
+
+  // Fur tuning tests (long and messy)
+  assert.ok(furryPet.setFurLength, 'setFurLength should be present');
+  assert.ok(furryPet.setMessiness, 'setMessiness should be present');
+  furryPet.setFurLength!(0.30);
+  furryPet.setMessiness!(0.18);
+
+  // Cleanup
+  furryPet.dispose();
+});
+

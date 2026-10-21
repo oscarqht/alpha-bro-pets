@@ -2,11 +2,19 @@ import * as THREE from 'three';
 import type { ProjectIconDefinition, ProjectAvatarEyeType, ProjectAvatarBrowType } from '../../utils/projectIcons';
 import { getSweatProgress, type FramePose } from '../spec';
 import { getShape3D } from './pet3dShapes';
+import { createFurShellSystem, type FurShellSystem } from './petFurShader';
 
 export interface Pet3DInstance {
   root: THREE.Group;
   petRoot: THREE.Group;
   applyPose: (pose: FramePose, boopOffset?: { y: number; scale: number }) => void;
+  updateFurPhysics?: (delta: number, camera: THREE.Camera, boopOffset?: number) => void;
+  setFurTime?: (time: number) => void;
+  setFurDisplacement?: (x: number, y: number, z: number) => void;
+  setFurLength?: (length: number) => void;
+  setMessiness?: (messiness: number) => void;
+  addFurImpulse?: (x: number, y: number, z: number) => void;
+  isFurry?: boolean;
   dispose: () => void;
 }
 
@@ -203,7 +211,8 @@ function createBrowsGroup(
  * Builds the complete 3D Pet object graph with pure Three.js.
  * Guarantees 100% visual fidelity between the interactive 3D preview and 3D exports.
  */
-export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
+export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: boolean }): Pet3DInstance {
+  const isFurry = !!options?.furry;
   const disposables: { geometries: THREE.BufferGeometry[]; materials: THREE.Material[] } = {
     geometries: [],
     materials: [],
@@ -231,9 +240,9 @@ export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
 
   const bodyMaterial = new THREE.MeshPhysicalMaterial({
     color: avatar.color,
-    roughness: 0.26,
+    roughness: isFurry ? 0.38 : 0.26,
     metalness: 0.04,
-    clearcoat: 0.35,
+    clearcoat: isFurry ? 0.1 : 0.35,
     clearcoatRoughness: 0.2,
     reflectivity: 0.4,
   });
@@ -243,6 +252,13 @@ export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
   bodyMesh.castShadow = true;
   bodyMesh.receiveShadow = true;
   petRoot.add(bodyMesh);
+
+  // 1b. Fur Shell System (When in Furry Mode)
+  let furSystem: FurShellSystem | null = null;
+  if (isFurry) {
+    furSystem = createFurShellSystem(bodyGeometry, avatar.color);
+    petRoot.add(furSystem.mesh);
+  }
 
   // 2. Briefcase Handle
   if (avatar.handle) {
@@ -262,25 +278,38 @@ export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
   }
 
   // 3. Facial Expression
-  const frontZ = 0.305;
+  // In furry mode, face is brought forward so eyes sit nestled comfortably in the long fluffy fleece
+  const frontZ = isFurry ? 0.49 : 0.305;
   const faceGroup = new THREE.Group();
   faceGroup.position.set(0, -avatar.fy, frontZ);
+  if (isFurry) {
+    faceGroup.renderOrder = 50;
+  }
   petRoot.add(faceGroup);
 
   const inkMaterial = new THREE.MeshStandardMaterial({
     color: avatar.ink,
     roughness: 0.25,
     metalness: 0.08,
+    polygonOffset: isFurry,
+    polygonOffsetFactor: isFurry ? -4 : 0,
+    polygonOffsetUnits: isFurry ? -4 : 0,
   });
   const whiteMaterial = new THREE.MeshStandardMaterial({
     color: '#ffffff',
     roughness: 0.15,
     metalness: 0.02,
+    polygonOffset: isFurry,
+    polygonOffsetFactor: isFurry ? -4 : 0,
+    polygonOffsetUnits: isFurry ? -4 : 0,
   });
   const pupilMaterial = new THREE.MeshStandardMaterial({
     color: '#141416',
     roughness: 0.1,
     metalness: 0.1,
+    polygonOffset: isFurry,
+    polygonOffsetFactor: isFurry ? -4 : 0,
+    polygonOffsetUnits: isFurry ? -4 : 0,
   });
   disposables.materials.push(inkMaterial, whiteMaterial, pupilMaterial);
 
@@ -840,9 +869,23 @@ export function buildPet3D(avatar: ProjectIconDefinition): Pet3DInstance {
     if (leftGhostArmMesh) leftGhostArmMesh.geometry.dispose();
     if (rightGhostArmMesh) rightGhostArmMesh.geometry.dispose();
 
+    if (furSystem) furSystem.dispose();
+
     disposables.geometries.forEach((g) => g.dispose());
     disposables.materials.forEach((m) => m.dispose());
   }
 
-  return { root, petRoot, applyPose, dispose };
+  return {
+    root,
+    petRoot,
+    applyPose,
+    updateFurPhysics: furSystem ? furSystem.updatePhysics : undefined,
+    setFurTime: furSystem ? furSystem.setTime : undefined,
+    setFurDisplacement: furSystem ? furSystem.setDisplacement : undefined,
+    setFurLength: furSystem ? furSystem.setFurLength : undefined,
+    setMessiness: furSystem ? furSystem.setMessiness : undefined,
+    addFurImpulse: furSystem ? (x, y, z) => furSystem.physics.addImpulse(x, y, z) : undefined,
+    isFurry,
+    dispose,
+  };
 }

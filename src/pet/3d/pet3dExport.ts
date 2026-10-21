@@ -19,7 +19,7 @@ export const DEFAULT_POV: CameraPOV = {
   zoom: 1,
 };
 
-function setupExportScene(icon: string, pov: CameraPOV) {
+function setupExportScene(icon: string, pov: CameraPOV, furry: boolean = false) {
   const avatar = getProjectIcon(icon);
   const scene = new THREE.Scene();
 
@@ -49,7 +49,7 @@ function setupExportScene(icon: string, pov: CameraPOV) {
 
   // Exclude the stage platform completely from the export.
   // Only the 3D pet character is added.
-  const pet = buildPet3D(avatar);
+  const pet = buildPet3D(avatar, { furry });
   scene.add(pet.root);
 
   // Setup camera at the exact user POV with cell aspect ratio
@@ -71,7 +71,8 @@ export async function createPetSheet3D(
   icon: string,
   pov: CameraPOV,
   version: PetVersion = 'v1',
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  furry: boolean = false
 ): Promise<Blob> {
   const rows = version === 'v2' ? 11 : 9;
   const cols = 8;
@@ -96,7 +97,7 @@ export async function createPetSheet3D(
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  const { scene, camera, pet } = setupExportScene(icon, pov);
+  const { scene, camera, pet } = setupExportScene(icon, pov, furry);
 
   try {
     let totalFrames = 0;
@@ -174,7 +175,8 @@ export async function createPetGif3D(
   icon: string,
   state: PetState,
   pov: CameraPOV,
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  furry: boolean = false
 ): Promise<Blob> {
   const { createGifEncoder, gifTimeline } = await import('../gif');
 
@@ -196,7 +198,7 @@ export async function createPetGif3D(
   const helperCtx = helperCanvas.getContext('2d', { willReadFrequently: true });
   if (!helperCtx) throw new Error('Your browser does not support canvas export.');
 
-  const { scene, camera, pet } = setupExportScene(icon, pov);
+  const { scene, camera, pet } = setupExportScene(icon, pov, furry);
   const encoder = createGifEncoder(CELL_WIDTH, CELL_HEIGHT);
   const timeline = gifTimeline(state);
 
@@ -204,6 +206,9 @@ export async function createPetGif3D(
     for (let i = 0; i < timeline.length; i++) {
       const pose = getPreviewPose(state, timeline[i]);
       pet.applyPose(pose);
+      if (furry && pet.setFurTime) {
+        pet.setFurTime(timeline[i] / 1000);
+      }
 
       renderer.clear();
       renderer.render(scene, camera);

@@ -8,21 +8,55 @@ interface PetModel3DProps {
   icon: string;
   state: PetState;
   paused?: boolean;
+  furry?: boolean;
+  furLength?: number;
+  messiness?: number;
+  fluffTrigger?: number;
 }
 
 export const PetModel3D: React.FC<PetModel3DProps> = ({
   icon,
   state,
   paused = false,
+  furry = false,
+  furLength,
+  messiness,
+  fluffTrigger = 0,
 }) => {
   const avatar = useMemo(() => getProjectIcon(icon), [icon]);
-  const pet3d = useMemo(() => buildPet3D(avatar), [avatar]);
+  const pet3d = useMemo(() => buildPet3D(avatar, { furry }), [avatar, furry]);
 
   useEffect(() => {
     return () => {
       pet3d.dispose();
     };
   }, [pet3d]);
+
+  // Dynamic fur length & messiness tuning
+  useEffect(() => {
+    if (furLength !== undefined) {
+      pet3d.setFurLength?.(furLength);
+    }
+  }, [furLength, pet3d]);
+
+  useEffect(() => {
+    if (messiness !== undefined) {
+      pet3d.setMessiness?.(messiness);
+    }
+  }, [messiness, pet3d]);
+
+  // Respond to Fluff button trigger with a joyful plush shake
+  const lastFluffRef = useRef(fluffTrigger);
+  useEffect(() => {
+    if (fluffTrigger > 0 && fluffTrigger !== lastFluffRef.current) {
+      lastFluffRef.current = fluffTrigger;
+      pet3d.addFurImpulse?.(
+        (Math.random() - 0.5) * 0.22,
+        0.18,
+        (Math.random() - 0.5) * 0.16
+      );
+    }
+  }, [fluffTrigger, pet3d]);
 
   // Playback timer ref
   const elapsedRef = useRef(0);
@@ -35,7 +69,7 @@ export const PetModel3D: React.FC<PetModel3DProps> = ({
   const [boopTime, setBoopTime] = useState<number | null>(null);
   const [, setHovered] = useState(false);
 
-  useFrame((_, delta) => {
+  useFrame((stateCtx, delta) => {
     if (!paused) {
       elapsedRef.current += delta * 1000;
     }
@@ -55,6 +89,11 @@ export const PetModel3D: React.FC<PetModel3DProps> = ({
     }
 
     pet3d.applyPose(pose, { y: boopY, scale: boopScale });
+
+    // Update dynamic reactive fur physics relative to camera rotation and view movement
+    if (furry && pet3d.updateFurPhysics) {
+      pet3d.updateFurPhysics(delta, stateCtx.camera, boopY);
+    }
   });
 
   return (
@@ -64,9 +103,22 @@ export const PetModel3D: React.FC<PetModel3DProps> = ({
         setHovered(true);
       }}
       onPointerOut={() => setHovered(false)}
+      onPointerMove={(e) => {
+        // Petting reaction: dragging cursor across the fur gently combs/swishes it
+        if (furry && pet3d.addFurImpulse && (e.buttons > 0 || Math.abs(e.movementX) > 2)) {
+          pet3d.addFurImpulse(
+            e.movementX * 0.0035,
+            -e.movementY * 0.0035,
+            0.015
+          );
+        }
+      }}
       onPointerDown={(e) => {
         e.stopPropagation();
         setBoopTime(performance.now());
+        if (furry && pet3d.addFurImpulse) {
+          pet3d.addFurImpulse(0, 0.12, 0.06);
+        }
       }}
     >
       <primitive object={pet3d.root} />
