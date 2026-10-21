@@ -3,6 +3,8 @@ import type { ProjectIconDefinition, ProjectAvatarEyeType, ProjectAvatarBrowType
 import { getSweatProgress, type FramePose } from '../spec';
 import { getShape3D } from './pet3dShapes';
 import { createFurShellSystem, type FurShellSystem } from './petFurShader';
+import { createPetGlassMaterial } from './petGlass';
+import { createPetGlassGeometry } from './petGlassGeometry';
 
 export interface Pet3DInstance {
   root: THREE.Group;
@@ -212,8 +214,9 @@ function createBrowsGroup(
  * Builds the complete 3D Pet object graph with pure Three.js.
  * Guarantees 100% visual fidelity between the interactive 3D preview and 3D exports.
  */
-export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: boolean }): Pet3DInstance {
-  const isFurry = !!options?.furry;
+export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: boolean; glass?: boolean }): Pet3DInstance {
+  const isGlass = !!options?.glass;
+  const isFurry = !!options?.furry && !isGlass;
   const disposables: { geometries: THREE.BufferGeometry[]; materials: THREE.Material[] } = {
     geometries: [],
     materials: [],
@@ -221,6 +224,9 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
 
   const shapeData = getShape3D(avatar.shapeId);
   const root = new THREE.Group();
+  // The inflated front projects closer to the camera. Leave room for the jump
+  // peak in the existing preview framing and 192 × 208 export cells.
+  if (isGlass) root.scale.setScalar(0.9);
   const petRoot = new THREE.Group();
   root.add(petRoot);
 
@@ -234,12 +240,15 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     bevelThickness: 0.11,
     curveSegments: 28,
   };
-  const bodyGeometry = new THREE.ExtrudeGeometry(shapeData.shape, extrudeSettings);
-  bodyGeometry.center();
-  bodyGeometry.computeVertexNormals();
+  const glassBody = isGlass ? createPetGlassGeometry(shapeData) : null;
+  const bodyGeometry = glassBody?.geometry ?? new THREE.ExtrudeGeometry(shapeData.shape, extrudeSettings);
+  if (!glassBody) {
+    bodyGeometry.center();
+    bodyGeometry.computeVertexNormals();
+  }
   disposables.geometries.push(bodyGeometry);
 
-  const bodyMaterial = new THREE.MeshPhysicalMaterial({
+  const bodyMaterial = isGlass ? createPetGlassMaterial(avatar.color) : new THREE.MeshPhysicalMaterial({
     color: avatar.color,
     roughness: isFurry ? 0.90 : 0.26,
     metalness: isFurry ? 0 : 0.04,
@@ -248,10 +257,11 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     reflectivity: isFurry ? 0.15 : 0.4,
   });
   disposables.materials.push(bodyMaterial);
+  if (glassBody) bodyMaterial.thickness = glassBody.depth * 2;
 
   const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
-  bodyMesh.castShadow = true;
-  bodyMesh.receiveShadow = true;
+  bodyMesh.castShadow = !isGlass;
+  bodyMesh.receiveShadow = !isGlass;
   petRoot.add(bodyMesh);
 
   // 1b. Fur Shell System (When in Furry Mode)
@@ -273,22 +283,29 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     const handleGeom = new THREE.TubeGeometry(curve, 32, 0.05, 12, false);
     disposables.geometries.push(handleGeom);
     const handleMesh = new THREE.Mesh(handleGeom, bodyMaterial);
-    handleMesh.castShadow = true;
+    handleMesh.castShadow = !isGlass;
     handleMesh.receiveShadow = true;
     petRoot.add(handleMesh);
   }
 
   // 3. Facial Expression
   // In furry mode, face is brought forward so eyes sit nestled comfortably in the long fluffy fleece
-  const frontZ = isFurry ? 0.54 : 0.305;
+  const frontZ = isGlass ? 0 : isFurry ? 0.54 : 0.305;
+  const glassFaceAnchors: { group: THREE.Group; x: number; y: number; rotation: THREE.Quaternion }[] = [];
+  const surfaceNormal = new THREE.Vector3();
+  const frontAxis = new THREE.Vector3(0, 0, 1);
   const faceGroup = new THREE.Group();
+  faceGroup.name = 'pet-face';
   faceGroup.position.set(0, -avatar.fy, frontZ);
-  if (isFurry) {
+  if (isFurry || isGlass) {
     faceGroup.renderOrder = 50;
   }
   petRoot.add(faceGroup);
 
   const inkMaterial = new THREE.MeshStandardMaterial({
+    // Keep the face out of Three's opaque transmission capture. It is drawn
+    // once, after the glass, instead of appearing again as a refracted ghost.
+    transparent: isGlass,
     color: avatar.ink,
     roughness: 0.25,
     metalness: 0.08,
@@ -297,6 +314,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     polygonOffsetUnits: isFurry ? -4 : 0,
   });
   const whiteMaterial = new THREE.MeshStandardMaterial({
+    transparent: isGlass,
     color: '#ffffff',
     roughness: 0.15,
     metalness: 0.02,
@@ -305,6 +323,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     polygonOffsetUnits: isFurry ? -4 : 0,
   });
   const pupilMaterial = new THREE.MeshStandardMaterial({
+    transparent: isGlass,
     color: '#141416',
     roughness: 0.1,
     metalness: 0.1,
@@ -318,6 +337,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
   for (const side of [-1, 1] as const) {
     const eyeHolder = new THREE.Group();
     eyeHolder.position.set(side * avatar.eyeGap, 0, 0);
+    if (isGlass) glassFaceAnchors.push({ group: eyeHolder, x: eyeHolder.position.x, y: 0, rotation: eyeHolder.quaternion.clone() });
     const singleEye = createSingleEyeGroup(
       avatar.eyes,
       side,
@@ -341,6 +361,16 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     disposables
   );
   if (brows) faceGroup.add(brows);
+  if (isGlass && brows) {
+    for (const child of brows.children) {
+      glassFaceAnchors.push({ group: child as THREE.Group, x: child.position.x, y: child.position.y, rotation: child.quaternion.clone() });
+    }
+  }
+  if (isGlass) {
+    faceGroup.traverse((object) => {
+      if (object instanceof THREE.Mesh) object.castShadow = false;
+    });
+  }
 
   // 4. Waving Arm
   const waveAnchorX = shapeData.radius + 0.18;
@@ -382,7 +412,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
   const kbBaseZ = 0.58;
   const shoulderDist = Math.max(0.42, Math.min(0.72, shapeData.radius * 0.72));
   const shoulderY = -0.25;
-  const shoulderZ = 0.15;
+  const shoulderZ = glassBody ? glassBody.frontZ(shoulderDist, shoulderY) : 0.15;
 
   const chassisMat = new THREE.MeshStandardMaterial({ color: '#1b1e28', roughness: 0.35, metalness: 0.3 });
   const bezelPlateMat = new THREE.MeshStandardMaterial({ color: '#252936', roughness: 0.4, metalness: 0.2 });
@@ -408,7 +438,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     ior: 1.33,
   });
   const sweatHighlightMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-  const armMat = new THREE.MeshStandardMaterial({ color: avatar.color, roughness: 0.28, metalness: 0.04 });
+  const armMat = isGlass ? createPetGlassMaterial(avatar.color) : new THREE.MeshStandardMaterial({ color: avatar.color, roughness: 0.28, metalness: 0.04 });
   const ghostArmMat = new THREE.MeshStandardMaterial({
     color: avatar.color,
     roughness: 0.3,
@@ -818,7 +848,7 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
       }
 
       dropGroup.visible = true;
-      dropGroup.position.set(currX, currY, frontHeadZ);
+      dropGroup.position.set(currX, currY, glassBody ? glassBody.frontZ(currX, currY) + 0.035 : frontHeadZ);
 
       // Scale teardrop with vertical stretch
       const sx = currRadius * 0.95;
@@ -850,7 +880,23 @@ export function buildPet3D(avatar: ProjectIconDefinition, options?: { furry?: bo
     const fy = -avatar.fy - pose.faceY * 0.013;
     faceGroup.position.x = fx;
     faceGroup.position.y = fy;
-    faceGroup.scale.set(faceScale, faceScale * pose.faceScaleY, 1);
+    const faceScaleY = faceScale * pose.faceScaleY;
+    faceGroup.scale.set(faceScale, faceScaleY, 1);
+    if (glassBody) {
+      // Keep each eye and brow tangent to the inflated surface as the face moves.
+      for (const anchor of glassFaceAnchors) {
+        const x = fx + anchor.x * faceScale;
+        const y = fy + anchor.y * faceScaleY;
+        const z = glassBody.frontZ(x, y);
+        anchor.group.position.z = z + 0.018;
+        const epsilon = 0.005;
+        const nx = (glassBody.frontZ(x - epsilon, y) - glassBody.frontZ(x + epsilon, y)) / (2 * epsilon);
+        const ny = (glassBody.frontZ(x, y - epsilon) - glassBody.frontZ(x, y + epsilon)) / (2 * epsilon);
+        // Compensate for the parent face's expression/blink scaling.
+        surfaceNormal.set(nx * faceScale, ny * faceScaleY, 1).normalize();
+        anchor.group.quaternion.setFromUnitVectors(frontAxis, surfaceNormal).multiply(anchor.rotation);
+      }
+    }
 
     // Waving arm
     if (pose.wave !== null) {

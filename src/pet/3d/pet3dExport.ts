@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { getProjectIcon } from '../../utils/projectIcons';
 import { CELL_HEIGHT, CELL_WIDTH, PET_STATES, getFramePose, getPreviewPose, type PetState, type PetVersion } from '../spec';
 import { buildPet3D } from './pet3dBuilder';
+import { createPetGlassEnvironment } from './petGlass';
 
 export interface CameraPOV {
   position: [number, number, number];
@@ -21,7 +22,7 @@ export const DEFAULT_POV: CameraPOV = {
 
 interface FurSettings { furLength: number; messiness: number }
 
-function setupExportScene(icon: string, pov: CameraPOV, furry: boolean = false, furSettings?: FurSettings) {
+function setupExportScene(icon: string, pov: CameraPOV, furry: boolean = false, furSettings?: FurSettings, glass = false) {
   const avatar = getProjectIcon(icon);
   const scene = new THREE.Scene();
 
@@ -51,7 +52,7 @@ function setupExportScene(icon: string, pov: CameraPOV, furry: boolean = false, 
 
   // Exclude the stage platform completely from the export.
   // Only the 3D pet character is added.
-  const pet = buildPet3D(avatar, { furry });
+  const pet = buildPet3D(avatar, { furry, glass });
   scene.add(pet.root);
   if (furSettings) {
     pet.setFurLength?.(furSettings.furLength);
@@ -80,6 +81,7 @@ export async function createPetSheet3D(
   onProgress?: (percent: number) => void,
   furry: boolean = false,
   furSettings?: FurSettings,
+  glass: boolean = false,
 ): Promise<Blob> {
   const rows = version === 'v2' ? 11 : 9;
   const cols = 8;
@@ -98,14 +100,16 @@ export async function createPetSheet3D(
     preserveDrawingBuffer: true,
     powerPreference: 'high-performance',
   });
-  if (furry) renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  if (furry || glass) renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_WIDTH, CELL_HEIGHT, false);
   renderer.setPixelRatio(1);
   renderer.setClearColor(0x000000, 0); // Transparent background
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  const { scene, camera, pet } = setupExportScene(icon, pov, furry, furSettings);
+  const { scene, camera, pet } = setupExportScene(icon, pov, furry, furSettings, glass);
+  const environment = glass ? createPetGlassEnvironment(renderer) : null;
+  if (environment) scene.environment = environment.texture;
 
   try {
     let totalFrames = 0;
@@ -172,6 +176,7 @@ export async function createPetSheet3D(
     return blob;
   } finally {
     pet.dispose();
+    environment?.dispose();
     renderer.dispose();
     renderer.forceContextLoss?.();
   }
@@ -188,6 +193,7 @@ export async function createPetGif3D(
   onProgress?: (percent: number) => void,
   furry: boolean = false,
   furSettings?: FurSettings,
+  glass: boolean = false,
 ): Promise<Blob> {
   const { createGifEncoder, gifTimeline } = await import('../gif');
 
@@ -197,7 +203,7 @@ export async function createPetGif3D(
     preserveDrawingBuffer: true,
     powerPreference: 'high-performance',
   });
-  if (furry) renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  if (furry || glass) renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_WIDTH, CELL_HEIGHT, false);
   renderer.setPixelRatio(1);
   renderer.setClearColor(0x000000, 0); // Transparent background
@@ -210,7 +216,9 @@ export async function createPetGif3D(
   const helperCtx = helperCanvas.getContext('2d', { willReadFrequently: true });
   if (!helperCtx) throw new Error('Your browser does not support canvas export.');
 
-  const { scene, camera, pet } = setupExportScene(icon, pov, furry, furSettings);
+  const { scene, camera, pet } = setupExportScene(icon, pov, furry, furSettings, glass);
+  const environment = glass ? createPetGlassEnvironment(renderer) : null;
+  if (environment) scene.environment = environment.texture;
   const encoder = createGifEncoder(CELL_WIDTH, CELL_HEIGHT);
   const timeline = gifTimeline(state);
 
@@ -239,6 +247,7 @@ export async function createPetGif3D(
     return encoder.finish();
   } finally {
     pet.dispose();
+    environment?.dispose();
     renderer.dispose();
     renderer.forceContextLoss?.();
   }

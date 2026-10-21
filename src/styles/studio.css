@@ -141,6 +141,13 @@ h2 {
   padding: 2px;
   gap: 2px;
 }
+.panel-heading > .preview-mode-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.preview-panel > .panel-heading {
+  flex-wrap: wrap;
+}
 .mode-toggle-btn {
   border: 0;
   background: transparent;

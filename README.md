@@ -17,7 +17,11 @@ npm install --include=dev
 npm run dev
 ```
 
-Open **http://localhost:5174**. For production:
+Open the **Local** URL printed by Vite (normally **http://localhost:3000**).
+If another task uses that port, Vite selects the next available port and Alpha Bro
+detects it from the startup log. The server binds to `localhost`, matching Alpha
+Bro's preview URL and detecting conflicts with other localhost dev servers.
+For production:
 
 ```sh
 npm run build
@@ -41,6 +45,28 @@ npm run preview
 
 Your avatar and name are saved in this browser. Export works without network requests;
 fonts, shapes, and artwork are bundled locally. An empty name receives a safe default filename.
+
+### Glass pets
+
+Choose **Glass** beside 2D, 3D, and Furry for tinted, refractive glass with
+chromatic dispersion and soft studio reflections. All shapes, faces, nine moves,
+orbit controls, PNG sprite sheets, and GIF exports work in Glass mode. Shared
+links preserve it with `mode=glass`; downloaded files use a `-glass` suffix.
+GIF's on/off alpha cannot retain all of the PNG's translucent detail.
+The **Backdrop** control cycles through Grid, Stripes, and Plain in the Glass
+preview. Patterns sit behind the pet in the 3D scene so they refract through its
+body, and are excluded from transparent exports. The face renders after the
+glass to prevent duplicate refracted eyes and brows.
+Glass bodies have fully curved, inflated fronts and backs: Round becomes a ball,
+while other pets retain their outline around the equator. Facial features follow
+the curved surface during animation. Preview and exports use the same geometry.
+
+The glass adapter in `src/pet/3d/petGlass.ts` reuses the clear preset and analytical
+studio-light GLSL from [oscarqht/glass](https://github.com/oscarqht/glass), pinned to
+commit `f10dc9cd915fb1ee190690591141e196c7471a59`. It adapts those optics to Three.js
+mesh transmission and a locally generated reflection environment, rather than
+using FluidGlass's standalone seven-shape SDF renderer. This preserves the
+existing pet silhouettes and shares the same material and lighting with exports.
 
 The default export is the publicly documented **1536 × 1872** sprite sheet,
 with **192 × 208** cells and **57** animation frames. See
