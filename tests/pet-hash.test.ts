@@ -128,7 +128,7 @@ test('shared hashes roundtrip every mode and action with the pet appearance', ()
   const avatar = getProjectIcon(formatProjectIconId({
     shapeId: 'heart', expressionId: 'wink-flat', color: '#8844EE',
   }));
-  for (const mode of ['2d', '3d', 'furry'] as const) {
+  for (const mode of ['2d', '3d', 'furry', 'glass'] as const) {
     for (const { id: action } of PET_STATES) {
       const hash = buildPetHash(avatar, { mode, action });
       const params = new URLSearchParams(hash.slice(1));

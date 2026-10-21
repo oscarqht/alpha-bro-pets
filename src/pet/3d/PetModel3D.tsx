@@ -9,6 +9,7 @@ interface PetModel3DProps {
   state: PetState;
   paused?: boolean;
   furry?: boolean;
+  glass?: boolean;
   furLength?: number;
   messiness?: number;
   fluffTrigger?: number;
@@ -19,12 +20,13 @@ export const PetModel3D: React.FC<PetModel3DProps> = ({
   state,
   paused = false,
   furry = false,
+  glass = false,
   furLength,
   messiness,
   fluffTrigger = 0,
 }) => {
   const avatar = useMemo(() => getProjectIcon(icon), [icon]);
-  const pet3d = useMemo(() => buildPet3D(avatar, { furry }), [avatar, furry]);
+  const pet3d = useMemo(() => buildPet3D(avatar, { furry, glass }), [avatar, furry, glass]);
 
   useEffect(() => {
     return () => {

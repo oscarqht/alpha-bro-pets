@@ -108,6 +108,8 @@ export default function App() {
   const canvas3DRef = useRef<PetCanvas3DHandle>(null);
   const currentPovRef = useRef<CameraPOV>(DEFAULT_POV);
   const avatar = getProjectIcon(icon);
+  const modeLabel = viewMode === "2d" ? "" : viewMode === "3d" ? "3D" : viewMode === "glass" ? "Glass" : "Furry";
+  const modePrefix = modeLabel ? `${modeLabel} ` : "";
 
   // Auto loop through all animations infinitely when enabled
   useEffect(() => {
@@ -175,16 +177,17 @@ export default function App() {
     setError("");
     setNotice("");
     try {
-      const is3D = viewMode === "3d" || viewMode === "furry";
+      const is3D = viewMode !== "2d";
       const isFurry = viewMode === "furry";
+      const isGlass = viewMode === "glass";
       const pov = canvas3DRef.current?.getPOV() ?? currentPovRef.current;
       const furSettings = canvas3DRef.current?.getFurSettings();
       const blob = format === "gif"
         ? (is3D
-            ? await createPetGif3D(icon, state, pov, setGifProgress, isFurry, furSettings)
+            ? await createPetGif3D(icon, state, pov, setGifProgress, isFurry, furSettings, isGlass)
             : await createPetGif(icon, state, setGifProgress))
         : (is3D
-            ? await createPetSheet3D(icon, pov, "v1", setGifProgress, isFurry, furSettings)
+            ? await createPetSheet3D(icon, pov, "v1", setGifProgress, isFurry, furSettings, isGlass)
             : await createPetSheet(icon));
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -198,7 +201,7 @@ export default function App() {
           .replace(/[^a-z0-9_-]+/gi, "-")
           .replace(/^-+|-+$/g, "")
           .slice(0, 50) || "my-pet";
-      const suffix = isFurry ? "-furry" : is3D ? "-3d" : "";
+      const suffix = isGlass ? "-glass" : isFurry ? "-furry" : is3D ? "-3d" : "";
       link.download = format === "gif"
         ? `${filename.toLowerCase()}-${state}${suffix}.gif`
         : `${filename.toLowerCase()}-chatgpt-pet${suffix}.png`;
@@ -208,12 +211,16 @@ export default function App() {
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
       setNotice(
         format === "gif"
-          ? (isFurry
+          ? (isGlass
+              ? "Glass GIF exported! A shimmering loop captured from your current angle."
+              : isFurry
               ? "Furry GIF exported! A soft, fluffy loop captured from your current angle."
               : is3D
               ? "3D GIF exported! A smooth, transparent loop captured from your current angle."
               : "GIF exported! A smooth, transparent loop of your selected move.")
-          : (isFurry
+          : (isGlass
+              ? "Glass Pet exported! All 9 animations captured from your current angle. Ready for ChatGPT."
+              : isFurry
               ? "Furry Pet exported! All 9 animations covered in thick soft fur from your current angle. Ready for ChatGPT."
               : is3D
               ? "3D Pet exported! All 9 animations captured from your current angle. Ready for ChatGPT."
@@ -335,7 +342,7 @@ export default function App() {
                 <span className="step-number">02</span>
                 <h2 id="preview-title">Bring it to life</h2>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div className="preview-mode-controls">
                 <div className="mode-toggle" role="group" aria-label="Preview dimension mode">
                   <button
                     type="button"
@@ -361,6 +368,14 @@ export default function App() {
                   >
                     <Sparkles size={11} className={viewMode === "furry" ? "text-amber-500" : ""} />
                     Furry
+                  </button>
+                  <button
+                    type="button"
+                    className={`mode-toggle-btn ${viewMode === "glass" ? "active" : ""}`}
+                    onClick={() => setViewMode("glass")}
+                    aria-pressed={viewMode === "glass"}
+                  >
+                    Glass
                   </button>
                 </div>
                 <span className="live-label">
@@ -391,6 +406,7 @@ export default function App() {
                     state={state}
                     paused={paused}
                     furry={viewMode === "furry"}
+                    glass={viewMode === "glass"}
                     onPovChange={(pov) => {
                       currentPovRef.current = pov;
                     }}
@@ -443,13 +459,15 @@ export default function App() {
                   onClick={() => exportPet("gif")}
                   aria-label={
                     exporting === "gif"
-                      ? `Creating ${viewMode === "furry" ? "Furry " : viewMode === "3d" ? "3D " : ""}GIF, ${gifProgress}%`
-                      : `Export selected move as ${viewMode === "furry" ? "Furry " : viewMode === "3d" ? "3D " : ""}GIF`
+                      ? `Creating ${modePrefix}GIF, ${gifProgress}%`
+                      : `Export selected move as ${modePrefix}GIF`
                   }
                   title={
                     exporting === "gif"
-                      ? `Creating ${viewMode === "furry" ? "Furry " : viewMode === "3d" ? "3D " : ""}GIF… ${gifProgress}%`
-                      : (viewMode === "furry"
+                      ? `Creating ${modePrefix}GIF… ${gifProgress}%`
+                      : (viewMode === "glass"
+                          ? "Export selected move in glass (current POV) · Transparent · Loops forever"
+                          : viewMode === "furry"
                           ? "Export selected move with soft fur (current POV) · Transparent · Loops forever"
                           : viewMode === "3d"
                           ? "Export selected move in 3D (current POV) · Transparent · Loops forever"
@@ -457,7 +475,7 @@ export default function App() {
                   }
                 >
                   {exporting === "gif" && <LoaderCircle aria-hidden="true" className="spin" size={12} />}
-                  GIF{viewMode === "furry" ? " Furry" : viewMode === "3d" ? " 3D" : ""}
+                  GIF{modeLabel ? ` ${modeLabel}` : ""}
                 </button>
               </div>
             </div>
@@ -470,14 +488,18 @@ export default function App() {
             </div>
             <div>
               <h2 id="export-title">
-                {viewMode === "furry"
+                {viewMode === "glass"
+                  ? "Ready for a shimmering home?"
+                  : viewMode === "furry"
                   ? "Ready for a fluffy home?"
                   : viewMode === "3d"
                   ? "Ready for a 3D home?"
                   : "Ready for a new home?"}
               </h2>
               <p>
-                {viewMode === "furry"
+                {viewMode === "glass"
+                  ? "All 9 animations in tinted glass from your current angle. One transparent PNG."
+                  : viewMode === "furry"
                   ? "All 9 animations covered in thick soft fur from your current angle. One transparent PNG."
                   : viewMode === "3d"
                   ? "All 9 animations captured in 3D from your current angle. One transparent PNG."
@@ -497,12 +519,10 @@ export default function App() {
             )}
             {exporting === "png"
               ? (viewMode !== "2d" && gifProgress > 0
-                  ? `Creating ${viewMode === "furry" ? "Furry" : "3D"} pet… ${gifProgress}%`
+                  ? `Creating ${modeLabel} pet… ${gifProgress}%`
                   : "Creating your pet…")
-              : (viewMode === "furry"
-                  ? "Export ChatGPT pet (Furry)"
-                  : viewMode === "3d"
-                  ? "Export ChatGPT pet (3D)"
+              : (modeLabel
+                  ? `Export ChatGPT pet (${modeLabel})`
                   : "Export ChatGPT pet")}
           </button>
         </section>

@@ -1,6 +1,6 @@
-import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Rotate3d, Compass, Sparkles } from 'lucide-react';
@@ -8,6 +8,22 @@ import type { PetState } from '../spec';
 import { PetModel3D } from './PetModel3D';
 import type { CameraPOV } from './pet3dExport';
 import { DEFAULT_POV } from './pet3dExport';
+import { createPetGlassEnvironment } from './petGlass';
+import { GlassBackdrop, type GlassBackdropPattern } from './GlassBackdrop';
+
+function GlassEnvironment() {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    const previous = scene.environment;
+    const environment = createPetGlassEnvironment(gl);
+    scene.environment = environment.texture;
+    return () => {
+      scene.environment = previous;
+      environment.dispose();
+    };
+  }, [gl, scene]);
+  return null;
+}
 
 export interface PetCanvas3DHandle {
   getPOV: () => CameraPOV;
@@ -22,16 +38,18 @@ export interface PetCanvas3DProps {
   state: PetState;
   paused?: boolean;
   furry?: boolean;
+  glass?: boolean;
   className?: string;
   onPovChange?: (pov: CameraPOV) => void;
 }
 
 export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
-  ({ icon, state, paused = false, furry = false, className = '', onPovChange }, ref) => {
+  ({ icon, state, paused = false, furry = false, glass = false, className = '', onPovChange }, ref) => {
     const controlsRef = useRef<OrbitControlsImpl>(null);
     const [autoRotate, setAutoRotate] = useState(false);
     const [fluffTrigger, setFluffTrigger] = useState(0);
     const [furStyle, setFurStyle] = useState<'shaggy' | 'wild' | 'plush'>('shaggy');
+    const [glassBackdrop, setGlassBackdrop] = useState<GlassBackdropPattern>('grid');
 
     const furLength = furStyle === 'wild' ? 0.32 : furStyle === 'shaggy' ? 0.26 : 0.18;
     const messiness = furStyle === 'wild' ? 0.20 : furStyle === 'shaggy' ? 0.14 : 0.08;
@@ -100,6 +118,8 @@ export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
           }}
           style={{ width: '100%', height: '100%', touchAction: 'none' }}
         >
+          {glass && <GlassEnvironment />}
+          {glass && glassBackdrop !== 'plain' && <GlassBackdrop pattern={glassBackdrop} />}
           {/* Studio Lighting Setup */}
           <ambientLight intensity={0.7} />
           <hemisphereLight
@@ -163,6 +183,7 @@ export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
                 state={state}
                 paused={paused}
                 furry={furry}
+                glass={glass}
                 furLength={furLength}
                 messiness={messiness}
                 fluffTrigger={fluffTrigger}
@@ -191,7 +212,18 @@ export const PetCanvas3D = forwardRef<PetCanvas3DHandle, PetCanvas3DProps>(
         </Canvas>
 
         {/* Sleek Stage 3D Control Badges */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10 pointer-events-auto">
+        <div className="absolute top-3 left-3 right-3 flex flex-wrap items-center gap-1.5 z-10 pointer-events-auto">
+          {glass && (
+            <button
+              type="button"
+              onClick={() => setGlassBackdrop((current) => current === 'grid' ? 'stripes' : current === 'stripes' ? 'plain' : 'grid')}
+              className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md border bg-[#ffffffed] text-[#5c6951] border-[#dce2d3] hover:bg-white transition-all"
+              aria-label={`Change glass backdrop (current: ${glassBackdrop})`}
+              title="Switch between grid, stripes, and plain backdrops"
+            >
+              Backdrop: {glassBackdrop === 'grid' ? 'Grid' : glassBackdrop === 'stripes' ? 'Stripes' : 'Plain'}
+            </button>
+          )}
           {furry && (
             <>
               <button

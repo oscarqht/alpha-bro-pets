@@ -9,7 +9,7 @@ import {
 } from './projectIcons';
 import { PET_STATES, type PetState } from '../pet/spec';
 
-export type PetViewMode = '2d' | '3d' | 'furry';
+export type PetViewMode = '2d' | '3d' | 'furry' | 'glass';
 
 interface PetPreviewSelection {
   mode?: PetViewMode;
@@ -215,7 +215,7 @@ export function parsePetHash(hash?: string | null): ParsedPetHash | null {
   const color = resolveColorHex(rawColor);
   const name = rawName ? rawName.trim().slice(0, 40) : undefined;
   const rawMode = params.get('mode')?.trim().toLowerCase();
-  const mode = rawMode === '2d' || rawMode === '3d' || rawMode === 'furry'
+  const mode = rawMode === '2d' || rawMode === '3d' || rawMode === 'furry' || rawMode === 'glass'
     ? rawMode : undefined;
   const rawAction = params.get('action')?.trim().toLowerCase();
   const action = PET_STATES.find((state) => state.id === rawAction)?.id;
