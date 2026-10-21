@@ -9,6 +9,7 @@ import {
   resolveColorHex,
 } from '../src/utils/petHash';
 import { getProjectIcon, formatProjectIconId } from '../src/utils/projectIcons';
+import { PET_STATES } from '../src/pet/spec';
 
 test('resolveShapeId matches standard shapes, aliases, and labels', () => {
   assert.equal(resolveShapeId('triangle'), 'triangle');
@@ -121,5 +122,50 @@ test('getPetIconFromHash fills missing parameters from fallback icon', () => {
   assert.equal(avatar.shapeId, 'star');
   assert.equal(avatar.expressionId, 'wink-none');
   assert.equal(avatar.color, '#8844EE');
+});
+
+test('shared hashes roundtrip every mode and action with the pet appearance', () => {
+  const avatar = getProjectIcon(formatProjectIconId({
+    shapeId: 'heart', expressionId: 'wink-flat', color: '#8844EE',
+  }));
+  for (const mode of ['2d', '3d', 'furry'] as const) {
+    for (const { id: action } of PET_STATES) {
+      const hash = buildPetHash(avatar, { mode, action });
+      const params = new URLSearchParams(hash.slice(1));
+      assert.equal(params.get('mode'), mode);
+      assert.equal(params.get('action'), action);
+      const resolved = getPetIconFromHash(hash);
+      assert.ok(resolved);
+      assert.equal(resolved.icon, avatar.id);
+      assert.equal(resolved.mode, mode);
+      assert.equal(resolved.action, action);
+    }
+  }
+});
+
+test('mode-only and action-only hashes preserve the fallback pet', () => {
+  const fallback = formatProjectIconId({
+    shapeId: 'star', expressionId: 'happy-none', color: '#5CCB77',
+  });
+  assert.deepEqual(getPetIconFromHash('#mode=furry', fallback), {
+    icon: fallback, name: undefined, mode: 'furry',
+  });
+  assert.deepEqual(getPetIconFromHash('#action=running', fallback), {
+    icon: fallback, name: undefined, action: 'running',
+  });
+  const normalized = parsePetHash('#mode=%202D%20&action=%20RUNNING-LEFT%20');
+  assert.equal(normalized?.mode, '2d');
+  assert.equal(normalized?.action, 'running-left');
+});
+
+test('invalid preview values are ignored without losing valid avatar or selection values', () => {
+  assert.equal(parsePetHash('#mode=4d&action=unknown'), null);
+  assert.equal(parsePetHash('#mode=&action='), null);
+  const appearance = parsePetHash('#shape=cloud&mode=4d&action=unknown');
+  assert.equal(appearance?.shapeId, 'cloud');
+  assert.equal(appearance?.mode, undefined);
+  assert.equal(appearance?.action, undefined);
+  assert.equal(parsePetHash('#mode=furry&action=unknown')?.mode, 'furry');
+  assert.equal(parsePetHash('#mode=unknown&action=waving')?.action, 'waving');
 });
 

@@ -27,6 +27,7 @@ import {
 import {
   buildPetHash,
   getPetIconFromHash,
+  type PetViewMode,
 } from "./utils/petHash";
 import {
   createPetSheet,
@@ -50,7 +51,7 @@ const INITIAL = formatProjectIconId({
 });
 const STORAGE_KEY = "raft-pet-studio:v1";
 
-function loadSaved(): { icon: string; name: string } {
+function loadSaved(): { icon: string; name: string; mode?: PetViewMode; action?: PetState } {
   // Check URL hash first (allows sharing URLs like #shape=triangle&eyes=toon&color=FFC20E)
   if (typeof window !== "undefined" && window.location.hash) {
     const fromHash = getPetIconFromHash(window.location.hash, INITIAL);
@@ -66,7 +67,7 @@ function loadSaved(): { icon: string; name: string } {
           /* Storage blocked */
         }
       }
-      return { icon: fromHash.icon, name: petName || "Sunny" };
+      return { ...fromHash, name: petName || "Sunny" };
     }
   }
 
@@ -95,9 +96,9 @@ export default function App() {
   const [saved] = useState(loadSaved);
   const [icon, setIcon] = useState(saved.icon);
   const [name, setName] = useState(saved.name);
-  const [state, setState] = useState<PetState>("idle");
+  const [state, setState] = useState<PetState>(saved.action ?? "idle");
   const [autoLoop, setAutoLoop] = useState(false);
-  const [viewMode, setViewMode] = useState<"2d" | "3d" | "furry">("3d");
+  const [viewMode, setViewMode] = useState<PetViewMode>(saved.mode ?? "3d");
   const [paused, setPaused] = useState(false);
   const [exporting, setExporting] = useState<"png" | "gif" | null>(null);
   const [gifProgress, setGifProgress] = useState(0);
@@ -124,10 +125,10 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [autoLoop, paused, state]);
 
-  // Sync current avatar shape, eyes, and color to the URL hash and localStorage
+  // Keep shared URLs in sync with the current appearance and preview selection.
   useEffect(() => {
     const currentAvatar = getProjectIcon(icon);
-    const hash = buildPetHash(currentAvatar);
+    const hash = buildPetHash(currentAvatar, { mode: viewMode, action: state });
     if (typeof window !== "undefined" && window.location.hash !== hash) {
       window.history.replaceState(null, "", hash);
     }
@@ -136,15 +137,18 @@ export default function App() {
     } catch {
       /* Private browsing can disable storage. */
     }
-  }, [icon, name]);
+  }, [icon, name, viewMode, state]);
 
   // Listen for browser navigation or manual address bar hash changes
   useEffect(() => {
     function handleHashChange() {
       const fromHash = getPetIconFromHash(window.location.hash, icon);
-      if (fromHash && fromHash.icon !== icon) {
+      if (fromHash) {
         setIcon(fromHash.icon);
         if (fromHash.name) setName(fromHash.name);
+        setViewMode(fromHash.mode ?? "3d");
+        setState(fromHash.action ?? "idle");
+        setAutoLoop(false);
       }
     }
     window.addEventListener("hashchange", handleHashChange);
@@ -297,7 +301,7 @@ export default function App() {
               <button
                 className="icon-button"
                 aria-label="Copy share link"
-                title="Copy link with selected shape, eyes, and color"
+                title="Copy link with selected shape, eyes, color, mode, and action"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(window.location.href);
