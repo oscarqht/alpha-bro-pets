@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createSvgEncoder } from '../svg';
 import { getProjectIcon } from '../../utils/projectIcons';
 import { CELL_HEIGHT, CELL_WIDTH, PET_STATES, getFramePose, getPreviewPose, type PetState, type PetVersion } from '../spec';
 import { buildPet3D } from './pet3dBuilder';
@@ -183,10 +184,10 @@ export async function createPetSheet3D(
 }
 
 /**
- * Exports one complete loop of the selected 3D move from the current POV as a transparent animated GIF.
+ * Capture one complete loop of the selected 3D move for a transparent GIF or SVG.
  * The ground platform is excluded.
  */
-export async function createPetGif3D(
+async function createPetAnimation3D(
   icon: string,
   state: PetState,
   pov: CameraPOV,
@@ -194,6 +195,7 @@ export async function createPetGif3D(
   furry: boolean = false,
   furSettings?: FurSettings,
   glass: boolean = false,
+  format: 'gif' | 'svg' = 'gif',
 ): Promise<Blob> {
   const { createGifEncoder, gifTimeline } = await import('../gif');
 
@@ -219,8 +221,9 @@ export async function createPetGif3D(
   const { scene, camera, pet } = setupExportScene(icon, pov, furry, furSettings, glass);
   const environment = glass ? createPetGlassEnvironment(renderer) : null;
   if (environment) scene.environment = environment.texture;
-  const encoder = createGifEncoder(CELL_WIDTH, CELL_HEIGHT);
   const timeline = gifTimeline(state);
+  const gifEncoder = format === 'gif' ? createGifEncoder(CELL_WIDTH, CELL_HEIGHT) : null;
+  const svgEncoder = format === 'svg' ? createSvgEncoder(state, timeline.length, `${icon}: ${state}`) : null;
 
   try {
     for (let i = 0; i < timeline.length; i++) {
@@ -235,8 +238,8 @@ export async function createPetGif3D(
 
       helperCtx.clearRect(0, 0, CELL_WIDTH, CELL_HEIGHT);
       helperCtx.drawImage(renderer.domElement, 0, 0);
-      const frameData = helperCtx.getImageData(0, 0, CELL_WIDTH, CELL_HEIGHT).data;
-      encoder.addFrame(frameData);
+      if (svgEncoder) svgEncoder.addFrame(helperCanvas);
+      else gifEncoder!.addFrame(helperCtx.getImageData(0, 0, CELL_WIDTH, CELL_HEIGHT).data);
 
       onProgress?.(Math.round(((i + 1) / timeline.length) * 100));
 
@@ -244,11 +247,20 @@ export async function createPetGif3D(
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
-    return encoder.finish();
+    return svgEncoder ? svgEncoder.finish() : gifEncoder!.finish();
   } finally {
     pet.dispose();
     environment?.dispose();
     renderer.dispose();
     renderer.forceContextLoss?.();
   }
+}
+
+export function createPetGif3D(icon: string, state: PetState, pov: CameraPOV, onProgress?: (percent: number) => void, furry = false, furSettings?: FurSettings, glass = false): Promise<Blob> {
+  return createPetAnimation3D(icon, state, pov, onProgress, furry, furSettings, glass, 'gif');
+}
+
+/** Capture the selected mode, camera, fur settings and action in a portable animated SVG. */
+export function createPetSvg3D(icon: string, state: PetState, pov: CameraPOV, onProgress?: (percent: number) => void, furry = false, furSettings?: FurSettings, glass = false): Promise<Blob> {
+  return createPetAnimation3D(icon, state, pov, onProgress, furry, furSettings, glass, 'svg');
 }

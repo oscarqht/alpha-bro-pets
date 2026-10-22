@@ -96,3 +96,22 @@ Raft itself is unchanged. Pet motion and the app shell are new.
 - `src/pet/` — shared native-cell renderer for preview and PNG export
 - `tests/` — timing and frame layout checks
 - `docs/` — export format and compatibility notes
+
+### Export for another website
+
+Use **Export animated SVG** below the preview to download the selected shape,
+color, face, mode and action as one transparent, looping `.svg` file. 3D modes
+also capture the current camera angle and fur settings. Auto cycling does not
+add other actions to the download.
+
+Copy the file into your project's public assets and embed it like any image:
+
+```html
+<img src="/pets/triangle-pet-waving.svg" width="192" height="208" alt="A waving pet" />
+```
+
+No JavaScript, React, Three.js, fonts or network requests are needed to play it.
+The SVG contains lossless PNG frames at 192 × 208 pixels, rather than editable
+vector paths, so all four rendering modes retain their appearance. It respects
+reduced-motion preferences by showing the first frame. Keep it as an SVG file;
+image optimizers that rasterize SVGs or strip animation will remove playback.

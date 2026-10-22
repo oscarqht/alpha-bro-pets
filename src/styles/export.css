@@ -198,3 +198,20 @@ footer {
   gap: 12px;
   flex-wrap: wrap;
 }
+
+.web-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 22px;
+  border-top: 1px solid #eeeee6;
+}
+.web-export h3 { font-size: 12px; margin: 0 0 5px; }
+.web-export p { font-size: 11px; color: #68705b; margin: 0; line-height: 1.6; }
+.web-export .web-export-detail { font-size: 10px; color: #757b6c; }
+.web-export-button { min-width: 0; padding: 10px 13px; }
+@media (max-width: 480px) {
+  .web-export-button { width: 100%; }
+}

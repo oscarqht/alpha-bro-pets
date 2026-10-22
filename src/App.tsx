@@ -32,6 +32,8 @@ import {
 import {
   createPetSheet,
   createPetGif,
+  createPetSvg,
+  createPetSvg3D,
   createPetSheet3D,
   createPetGif3D,
   DEFAULT_POV,
@@ -100,7 +102,7 @@ export default function App() {
   const [autoLoop, setAutoLoop] = useState(false);
   const [viewMode, setViewMode] = useState<PetViewMode>(saved.mode ?? "3d");
   const [paused, setPaused] = useState(false);
-  const [exporting, setExporting] = useState<"png" | "gif" | null>(null);
+  const [exporting, setExporting] = useState<"png" | "gif" | "svg" | null>(null);
   const [gifProgress, setGifProgress] = useState(0);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -170,7 +172,7 @@ export default function App() {
     setNotice("A new little personality.");
   }
 
-  async function exportPet(format: "png" | "gif" = "png") {
+  async function exportPet(format: "png" | "gif" | "svg" = "png") {
     if (exporting) return;
     setExporting(format);
     setGifProgress(0);
@@ -182,7 +184,11 @@ export default function App() {
       const isGlass = viewMode === "glass";
       const pov = canvas3DRef.current?.getPOV() ?? currentPovRef.current;
       const furSettings = canvas3DRef.current?.getFurSettings();
-      const blob = format === "gif"
+      const blob = format === "svg"
+        ? (is3D
+            ? await createPetSvg3D(icon, state, pov, setGifProgress, isFurry, furSettings, isGlass)
+            : await createPetSvg(icon, state, setGifProgress))
+        : format === "gif"
         ? (is3D
             ? await createPetGif3D(icon, state, pov, setGifProgress, isFurry, furSettings, isGlass)
             : await createPetGif(icon, state, setGifProgress))
@@ -202,15 +208,17 @@ export default function App() {
           .replace(/^-+|-+$/g, "")
           .slice(0, 50) || "my-pet";
       const suffix = isGlass ? "-glass" : isFurry ? "-furry" : is3D ? "-3d" : "";
-      link.download = format === "gif"
-        ? `${filename.toLowerCase()}-${state}${suffix}.gif`
+      link.download = format !== "png"
+        ? `${filename.toLowerCase()}-${state}${suffix}.${format}`
         : `${filename.toLowerCase()}-chatgpt-pet${suffix}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
       setNotice(
-        format === "gif"
+        format === "svg"
+          ? 'Animated SVG exported! Add it to your project and embed it with an <img> tag.'
+          : format === "gif"
           ? (isGlass
               ? "Glass GIF exported! A shimmering loop captured from your current angle."
               : isFurry
@@ -478,6 +486,25 @@ export default function App() {
                   GIF{modeLabel ? ` ${modeLabel}` : ""}
                 </button>
               </div>
+            </div>
+            <div className="web-export">
+              <div>
+                <h3>Take this move to your website</h3>
+                <p>One animated SVG · Transparent · No dependencies</p>
+                <p className="web-export-detail">Embedded PNG frames · Selected look and move only</p>
+              </div>
+              <button
+                type="button"
+                className="export-button web-export-button"
+                disabled={!!exporting}
+                onClick={() => exportPet("svg")}
+                aria-label={exporting === "svg" ? `Creating animated SVG, ${gifProgress}%` : "Export animated SVG"}
+              >
+                {exporting === "svg"
+                  ? <LoaderCircle aria-hidden="true" className="spin" size={16} />
+                  : <ArrowDownToLine aria-hidden="true" size={16} />}
+                {exporting === "svg" ? `Exporting… ${gifProgress}%` : "Export animated SVG"}
+              </button>
             </div>
           </section>
         </div>
