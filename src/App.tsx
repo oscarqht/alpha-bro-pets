@@ -32,6 +32,8 @@ import {
 import {
   createPetSheet,
   createPetGif,
+  createPetApng,
+  createPetApng3D,
   createPetSvg,
   createPetSvg3D,
   createPetSheet3D,
@@ -102,7 +104,7 @@ export default function App() {
   const [autoLoop, setAutoLoop] = useState(false);
   const [viewMode, setViewMode] = useState<PetViewMode>(saved.mode ?? "3d");
   const [paused, setPaused] = useState(false);
-  const [exporting, setExporting] = useState<"png" | "gif" | "svg" | null>(null);
+  const [exporting, setExporting] = useState<"png" | "gif" | "svg" | "apng" | null>(null);
   const [gifProgress, setGifProgress] = useState(0);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -172,7 +174,7 @@ export default function App() {
     setNotice("A new little personality.");
   }
 
-  async function exportPet(format: "png" | "gif" | "svg" = "png") {
+  async function exportPet(format: "png" | "gif" | "svg" | "apng" = "png") {
     if (exporting) return;
     setExporting(format);
     setGifProgress(0);
@@ -184,7 +186,11 @@ export default function App() {
       const isGlass = viewMode === "glass";
       const pov = canvas3DRef.current?.getPOV() ?? currentPovRef.current;
       const furSettings = canvas3DRef.current?.getFurSettings();
-      const blob = format === "svg"
+      const blob = format === "apng"
+        ? (is3D
+            ? await createPetApng3D(icon, state, pov, setGifProgress, isFurry, furSettings, isGlass)
+            : await createPetApng(icon, state, setGifProgress))
+        : format === "svg"
         ? (is3D
             ? await createPetSvg3D(icon, state, pov, setGifProgress, isFurry, furSettings, isGlass)
             : await createPetSvg(icon, state, setGifProgress))
@@ -216,7 +222,9 @@ export default function App() {
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
       setNotice(
-        format === "svg"
+        format === "apng"
+          ? "Animated PNG exported! A lossless, transparent loop. Open it in your browser or embed it with an <img> tag."
+          : format === "svg"
           ? 'Animated SVG exported! Add it to your project and embed it with an <img> tag.'
           : format === "gif"
           ? (isGlass
@@ -490,21 +498,36 @@ export default function App() {
             <div className="web-export">
               <div>
                 <h3>Take this move to your website</h3>
-                <p>One animated SVG · Transparent · No dependencies</p>
-                <p className="web-export-detail">Embedded PNG frames · Selected look and move only</p>
+                <p>Animated SVG or PNG · Transparent · Loops forever</p>
+                <p className="web-export-detail">Selected look and move · APNG plays in Chrome on Windows</p>
               </div>
-              <button
-                type="button"
-                className="export-button web-export-button"
-                disabled={!!exporting}
-                onClick={() => exportPet("svg")}
-                aria-label={exporting === "svg" ? `Creating animated SVG, ${gifProgress}%` : "Export animated SVG"}
-              >
-                {exporting === "svg"
-                  ? <LoaderCircle aria-hidden="true" className="spin" size={16} />
-                  : <ArrowDownToLine aria-hidden="true" size={16} />}
-                {exporting === "svg" ? `Exporting… ${gifProgress}%` : "Export animated SVG"}
-              </button>
+              <div className="web-export-actions">
+                <button
+                  type="button"
+                  className="export-button web-export-button"
+                  disabled={!!exporting}
+                  onClick={() => exportPet("svg")}
+                  aria-label={exporting === "svg" ? `Creating animated SVG, ${gifProgress}%` : "Export animated SVG"}
+                >
+                  {exporting === "svg"
+                    ? <LoaderCircle aria-hidden="true" className="spin" size={16} />
+                    : <ArrowDownToLine aria-hidden="true" size={16} />}
+                  {exporting === "svg" ? `Exporting… ${gifProgress}%` : "Export animated SVG"}
+                </button>
+                <button
+                  type="button"
+                  className="export-button web-export-button"
+                  disabled={!!exporting}
+                  onClick={() => exportPet("apng")}
+                  aria-label={exporting === "apng" ? `Creating animated PNG, ${gifProgress}%` : "Export animated PNG"}
+                  title="APNG · Full alpha transparency · 50 fps · Loops forever"
+                >
+                  {exporting === "apng"
+                    ? <LoaderCircle aria-hidden="true" className="spin" size={16} />
+                    : <ArrowDownToLine aria-hidden="true" size={16} />}
+                  {exporting === "apng" ? `Exporting… ${gifProgress}%` : "Export animated PNG"}
+                </button>
+              </div>
             </div>
           </section>
         </div>

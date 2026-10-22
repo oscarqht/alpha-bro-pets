@@ -11,3 +11,6 @@ export type { Pet3DInstance } from './3d/pet3dBuilder';
 
 export { createPetSvg } from './svg';
 export { createPetSvg3D } from './3d/pet3dExport';
+
+export { createPetApng } from './apng';
+export { createPetApng3D } from './3d/pet3dExport';
