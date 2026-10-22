@@ -115,3 +115,23 @@ The SVG contains lossless PNG frames at 192 × 208 pixels, rather than editable
 vector paths, so all four rendering modes retain their appearance. It respects
 reduced-motion preferences by showing the first frame. Keep it as an SVG file;
 image optimizers that rasterize SVGs or strip animation will remove playback.
+
+### Animated PNG (APNG)
+
+Choose **Export animated PNG** next to the SVG export to download the selected
+move as a transparent, endlessly looping **192 × 208 APNG at 50 fps**. It preserves
+full RGBA color and soft alpha edges without GIF palette quantization. All four
+looks (2D, 3D, Furry, Glass) are supported, including the current camera and fur
+settings. The stage and preview backdrop are excluded.
+
+The download uses `.apng` and `image/apng`, and works directly in an `<img>` tag:
+
+```html
+<img src="cloud-pet-waving.apng" width="192" height="208" alt="A waving pet" />
+```
+
+[Chrome supports APNG playback on Windows](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Image_types#apng_animated_portable_network_graphics),
+as do current Edge, Firefox, and Safari. Export uses the browser's native
+CompressionStream API; use a current browser. Some image editors, upload services,
+and desktop viewers may display only the first frame. The separate **Export
+ChatGPT pet** button still creates the all-moves PNG sprite sheet.

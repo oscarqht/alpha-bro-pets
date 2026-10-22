@@ -211,7 +211,8 @@ footer {
 .web-export h3 { font-size: 12px; margin: 0 0 5px; }
 .web-export p { font-size: 11px; color: #68705b; margin: 0; line-height: 1.6; }
 .web-export .web-export-detail { font-size: 10px; color: #757b6c; }
+.web-export-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .web-export-button { min-width: 0; padding: 10px 13px; }
 @media (max-width: 480px) {
-  .web-export-button { width: 100%; }
+  .web-export-actions, .web-export-button { width: 100%; }
 }
